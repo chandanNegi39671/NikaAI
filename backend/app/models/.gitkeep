@@ -1,0 +1,11 @@
+# This directory holds AI model weights.
+#
+# Contents (auto-downloaded on first startup):
+#   best.pt        — YOLOv8s factory defect model (negi3961/factory-defect-guard)
+#   best_v6_mc.pt  — MC Dropout variant (used in Sprint 4 for uncertainty estimation)
+#
+# The PredictionService will auto-download best.pt from HuggingFace Hub
+# if it is not present. No manual download is needed.
+#
+# DO NOT commit .pt weight files to git.
+# Add *.pt to .gitignore.
