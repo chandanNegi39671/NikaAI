@@ -38,12 +38,18 @@ from __future__ import annotations
 
 import io
 from typing import Annotated
+import uuid
+from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, UploadFile, status, Depends
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
+from app.core.database import get_db
+from app.models.db_models import Inspection, Detection as DbDetection, AIExplanation, Session as DbSession, Worker, Machine, Shift
+from app.services.gemma import generate_explanation
 from app.exceptions import InvalidImageError, ModelNotLoadedError, PredictionError
 from app.services.prediction import PredictionResult, prediction_service
 
@@ -141,6 +147,11 @@ class PredictResponse(BaseModel):
         default=True,
         description="Always ``true`` on a 200 response.",
         examples=[True],
+    )
+    id: str | None = Field(
+        default=None,
+        description="The unique database ID of the inspection record.",
+        examples=["insp_20260707_123456_abcd"],
     )
     image: ImageDimensionsSchema = Field(
         description="Dimensions of the uploaded image in pixels."
@@ -272,7 +283,7 @@ def _decode_pil_image(raw: bytes, filename: str) -> Image.Image:
         )
 
 
-def _build_response(result: PredictionResult) -> PredictResponse:
+def _build_response(result: PredictionResult, inspection_id: str | None = None) -> PredictResponse:
     """Map a ``PredictionResult`` dataclass to the ``PredictResponse`` schema.
 
     This function exists solely to keep the route handler clean and to make
@@ -280,6 +291,7 @@ def _build_response(result: PredictionResult) -> PredictResponse:
 
     Args:
         result: The ``PredictionResult`` returned by ``PredictionService.predict()``.
+        inspection_id: The primary key of the saved database inspection record.
 
     Returns:
         A ``PredictResponse`` Pydantic model ready for serialisation.
@@ -300,6 +312,7 @@ def _build_response(result: PredictionResult) -> PredictResponse:
 
     return PredictResponse(
         success=True,
+        id=inspection_id,
         image=ImageDimensionsSchema(
             width=result.image_width,
             height=result.image_height,
@@ -373,25 +386,32 @@ async def predict(
             )
         ),
     ],
+    session_id: str | None = None,
+    machine_id: str | None = None,
+    worker_id: str | None = None,
+    shift_id: str | None = None,
+    db: Session = Depends(get_db),
 ) -> PredictResponse:
-    """Run YOLOv8 defect detection on the uploaded image.
+    """Run YOLOv8 defect detection on the uploaded image and persist results to database.
 
     **Steps performed by this endpoint:**
     1. Validate the Content-Type header (MIME allow-list).
     2. Read the upload body and reject empty files.
-    3. Decode bytes into a PIL Image (no temp files written to disk).
+    3. Decode bytes into a PIL Image.
     4. Call ``PredictionService.validate_image()`` — size, format, dimensions.
     5. Call ``PredictionService.predict()`` — YOLOv8 forward pass.
-    6. Return a ``PredictResponse`` with detections sorted by confidence.
+    6. Save image to disk under static directory.
+    7. Persist Session, Inspection, Detections, and AIExplanation to database.
+    8. Return a ``PredictResponse``.
     """
     filename: str = image.filename or "upload"
 
-    # NOTE: image.size is None until bytes are read; log content_type only here.
     logger.info(
         "Prediction request received.",
         extra={
             "filename": filename,
             "content_type": image.content_type,
+            "session_id": session_id,
         },
     )
 
@@ -444,8 +464,126 @@ async def predict(
             detail=f"Inference failed: {exc.reason}",
         )
 
+    # ── Gate 6: Save Image to static/uploads ──────────────────────────────────
+    ext = Path(filename).suffix or ".jpg"
+    unique_filename = f"{uuid.uuid4()}{ext}"
+    static_dir = Path(__file__).resolve().parent.parent.parent.parent / "static"
+    upload_dir = static_dir / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    image_file_path = upload_dir / unique_filename
+    
+    try:
+        with open(image_file_path, "wb") as buffer:
+            buffer.write(raw)
+        db_image_path = f"/static/uploads/{unique_filename}"
+    except Exception as exc:
+        logger.error(f"Failed to write image to disk: {exc}")
+        db_image_path = None
+
+    # ── Gate 7: Database Persistence ──────────────────────────────────────────
+    try:
+        # Resolve/Create Session
+        if session_id:
+            db_session_row = db.query(DbSession).filter(DbSession.session_id == session_id).first()
+            if not db_session_row:
+                db_session_row = DbSession(session_id=session_id, status="active")
+                db.add(db_session_row)
+                db.commit()
+                db.refresh(db_session_row)
+        else:
+            import random
+            generated_id = f"#NK-{random.randint(1000, 9999)}-{uuid.uuid4().hex[:2].upper()}"
+            db_session_row = DbSession(session_id=generated_id, status="active")
+            db.add(db_session_row)
+            db.commit()
+            db.refresh(db_session_row)
+
+        # Resolve machine, worker, shift defaults
+        db_machine = None
+        if machine_id:
+            db_machine = db.query(Machine).filter(Machine.id == machine_id).first()
+        if not db_machine:
+            db_machine = db.query(Machine).first()
+
+        db_worker = None
+        if worker_id:
+            db_worker = db.query(Worker).filter(Worker.id == worker_id).first()
+        if not db_worker:
+            db_worker = db.query(Worker).first()
+
+        db_shift = None
+        if shift_id:
+            db_shift = db.query(Shift).filter(Shift.id == shift_id).first()
+        if not db_shift:
+            db_shift = db.query(Shift).first()
+
+        is_pass = not result.has_defects
+        status_str = "PASS" if is_pass else "FAIL"
+        avg_confidence = 0.0
+        if result.has_defects:
+            avg_confidence = sum(d.confidence for d in result.detections) / len(result.detections)
+
+        # Save Inspection
+        db_inspection = Inspection(
+            session_id=db_session_row.id if db_session_row else None,
+            machine_id=db_machine.id if db_machine else None,
+            worker_id=db_worker.id if db_worker else None,
+            shift_id=db_shift.id if db_shift else None,
+            image_path=db_image_path,
+            original_image_name=filename,
+            status=status_str,
+            latency_ms=result.inference_time_ms,
+            inference_time_ms=result.inference_time_ms,
+            confidence=avg_confidence
+        )
+        db.add(db_inspection)
+        db.commit()
+        db.refresh(db_inspection)
+
+        # Save Detections
+        for det in result.detections:
+            db_det = DbDetection(
+                inspection_id=db_inspection.id,
+                defect_class=det.defect,
+                confidence=det.confidence,
+                x1=det.bounding_box.x1,
+                y1=det.bounding_box.y1,
+                x2=det.bounding_box.x2,
+                y2=det.bounding_box.y2
+            )
+            db.add(db_det)
+
+        # Save AI Explanation
+        if result.has_defects:
+            top_defect = result.detections[0]
+            explanation_res = generate_explanation(top_defect.defect)
+            db_explanation = AIExplanation(
+                inspection_id=db_inspection.id,
+                gemma_explanation=explanation_res.explanation_text,
+                trust_score=explanation_res.trust_score,
+                explanation_json=explanation_res.explanation_json
+            )
+            db.add(db_explanation)
+        else:
+            explanation_res = generate_explanation("no_defect")
+            db_explanation = AIExplanation(
+                inspection_id=db_inspection.id,
+                gemma_explanation="No defects detected. Part is within nominal quality tolerance.",
+                trust_score=1.0,
+                explanation_json=explanation_res.explanation_json
+            )
+            db.add(db_explanation)
+
+        db.commit()
+        inspection_id = db_inspection.id
+        logger.info(f"Persisted inspection to DB. ID: {inspection_id}, Status: {status_str}")
+    except Exception as db_exc:
+        db.rollback()
+        inspection_id = None
+        logger.error(f"Failed to persist prediction results to database: {db_exc}")
+
     # ── Build and return response ──────────────────────────────────────────────
-    response = _build_response(result)
+    response = _build_response(result, inspection_id=inspection_id)
 
     logger.info(
         "Prediction response ready.",

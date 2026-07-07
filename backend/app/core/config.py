@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     app_name: str = "Nika AI"
     app_version: str = "0.1.0"
     debug: bool = False
+    database_url: str = "sqlite:///./nika.db"
+
 
     # ── Server ────────────────────────────────────────────────────────────────
     host: str = "0.0.0.0"

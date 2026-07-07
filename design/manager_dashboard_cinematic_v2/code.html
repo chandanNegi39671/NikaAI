@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NIKA AI | Manager Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Geist:wght@400;500;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(23, 19, 13, 0.6);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(251, 186, 100, 0.15);
+            box-shadow: 0px 24px 48px rgba(0, 0, 0, 0.6);
+            transition: transform 0.2s cubic-bezier(0.03, 0.98, 0.52, 0.99), box-shadow 0.3s ease;
+            transform-style: preserve-3d;
+        }
+        .metallic-border {
+            border: 1px solid transparent;
+            background: linear-gradient(rgba(23, 19, 13, 0.8), rgba(23, 19, 13, 0.8)) padding-box,
+                        linear-gradient(135deg, rgba(251, 186, 100, 0.4) 0%, rgba(251, 186, 100, 0.05) 50%, rgba(251, 186, 100, 0.4) 100%) border-box;
+        }
+        .copper-glow-header {
+            position: relative;
+        }
+        .copper-glow-header::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 150px;
+            background: radial-gradient(circle, rgba(251, 186, 100, 0.15) 0%, transparent 70%);
+            filter: blur(40px);
+            z-index: -1;
+            pointer-events: none;
+        }
+        .copper-gradient {
+            background: linear-gradient(135deg, #fbba64 0%, #ff6a00 100%);
+        }
+        .led-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+        .critical-pulse {
+            animation: critical-glow 1.5s infinite alternate;
+        }
+        @keyframes critical-glow {
+            from { box-shadow: 0 0 5px rgba(255, 180, 171, 0.2); border-color: rgba(255, 180, 171, 0.3); }
+            to { box-shadow: 0 0 15px rgba(255, 180, 171, 0.6); border-color: rgba(255, 180, 171, 1); }
+        }
+        .shimmer-btn {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .shimmer-btn::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent 45%, rgba(255, 255, 255, 0.3) 50%, transparent 55%);
+            animation: shimmer 4s infinite linear;
+            pointer-events: none;
+        }
+        @keyframes shimmer {
+            0% { transform: translate(-30%, -30%); }
+            100% { transform: translate(30%, 30%); }
+        }
+        .fade-in-up {
+            animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            opacity: 0;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .cursor-spotlight {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: radial-gradient(circle 450px at var(--mouse-x) var(--mouse-y), rgba(251, 186, 100, 0.08), transparent 80%);
+            z-index: 1;
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #3a342d; border-radius: 10px; }
+        
+        .parallax-item {
+            transition: transform 0.2s cubic-bezier(0.03, 0.98, 0.52, 0.99);
+            will-change: transform;
+        }
+        
+        .glow-point {
+            filter: drop-shadow(0 0 4px rgba(251, 186, 100, 0.8));
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#fbba64",
+                        "tertiary-container": "#5c9ccd",
+                        "surface-dim": "#17130d",
+                        "on-secondary-fixed-variant": "#7b2f00",
+                        "on-primary-fixed-variant": "#643f00",
+                        "on-secondary": "#571f00",
+                        "tertiary": "#90cdff",
+                        "inverse-primary": "#845400",
+                        "surface": "#17130d",
+                        "on-primary-fixed": "#2a1800",
+                        "on-tertiary-fixed": "#001e30",
+                        "error": "#ffb4ab",
+                        "on-surface": "#ece0d6",
+                        "on-primary-container": "#442900",
+                        "surface-variant": "#3a342d",
+                        "primary-fixed": "#ffddb6",
+                        "on-secondary-fixed": "#351000",
+                        "primary-container": "#c58b3a",
+                        "surface-tint": "#fbba64",
+                        "inverse-on-surface": "#362f29",
+                        "inverse-surface": "#ece0d6",
+                        "on-tertiary-fixed-variant": "#004b72",
+                        "error-container": "#93000a",
+                        "surface-container-lowest": "#120d08",
+                        "on-surface-variant": "#d5c4b2",
+                        "surface-container-high": "#2f2923",
+                        "outline-variant": "#514537",
+                        "on-secondary-container": "#571f00",
+                        "secondary-container": "#ff6a00",
+                        "surface-bright": "#3f3831",
+                        "on-tertiary-container": "#00324d",
+                        "on-background": "#ece0d6",
+                        "surface-container-low": "#201b15",
+                        "outline": "#9d8e7e",
+                        "on-error-container": "#ffdad6",
+                        "on-error": "#690005",
+                        "surface-container-highest": "#3a342d",
+                        "secondary-fixed-dim": "#ffb694",
+                        "surface-container": "#241f19",
+                        "on-tertiary": "#003350",
+                        "on-primary": "#462a00",
+                        "secondary-fixed": "#ffdbcc",
+                        "background": "#17130d",
+                        "tertiary-fixed": "#cbe6ff",
+                        "secondary": "#ffb694",
+                        "primary": "#fbba64",
+                        "tertiary-fixed-dim": "#90cdff"
+                    },
+                    "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                    "spacing": { "xs": "4px", "sm": "12px", "md": "24px", "base": "8px", "gutter": "24px", "xl": "80px", "margin-mobile": "20px", "margin-desktop": "64px", "lg": "48px" },
+                    "fontFamily": {
+                        "body-md": ["Inter"], "headline-lg": ["Inter"], "label-sm": ["Geist"], "display-mono": ["Geist"],
+                        "headline-lg-mobile": ["Inter"], "body-lg": ["Inter"], "headline-xl": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "label-sm": ["12px", { "lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "600" }],
+                        "display-mono": ["14px", { "lineHeight": "1.5", "letterSpacing": "0.1em", "fontWeight": "500" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "1.2", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "headline-xl": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen selection:bg-primary/30 relative">
+<div class="cursor-spotlight" id="spotlight"></div>
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl border-b border-primary/30 flex justify-between items-center px-margin-mobile md:px-margin-desktop h-16">
+<div class="flex items-center gap-4">
+<div class="w-8 h-8 rounded-full bg-primary-container/20 flex items-center justify-center border border-primary/40">
+<span class="material-symbols-outlined text-primary text-[20px]" style="font-variation-settings: 'FILL' 1;">security</span>
+</div>
+<h1 class="font-display-mono text-display-mono tracking-widest text-primary-fixed-dim">NIKA AI</h1>
+</div>
+<div class="flex items-center gap-6">
+<nav class="hidden md:flex items-center gap-8">
+<a class="font-label-sm text-label-sm text-primary font-bold transition-colors" href="#">DASHBOARD</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">HISTORY</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">CAMERA</a>
+</nav>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer">settings</span>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-primary/30">
+<img alt="Manager profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMGy7j25ByO5eHvqWo6Atg2UlPf-KTceR5zOP0v7XzfAvmMZfWoHGm02GQaEwUpJIqMCOpOrF1fnoOsij41koxRc7l_7ijsRlavuLv-YYxnngd7cYyzLerATNMdT2EEIMQ8bRZLsLmIhWfWOzDR0aqjR54V6yR1edCFvEkNBIAtw3pc9yexeesooxus7RPWfbze2SZSxCb25hNZMEJ6FlfiRoP9aBfoWuyAX_Xt14o_tOVTgjDd1Sdm_7BHQWes8dU3kRNeggoVYQ"/>
+</div>
+</div>
+</div>
+</header>
+<main class="pt-24 pb-32 px-margin-mobile md:px-margin-desktop max-w-7xl mx-auto space-y-md relative z-10">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-gutter fade-in-up copper-glow-header" style="animation-delay: 0.1s;">
+<div>
+<p class="font-display-mono text-label-sm text-primary tracking-widest mb-2 uppercase">Systems Operational</p>
+<h2 class="font-headline-xl text-headline-xl text-on-surface">Factory Overview</h2>
+</div>
+<button class="shimmer-btn copper-gradient text-on-primary-fixed font-label-sm text-label-sm px-6 py-4 rounded-xl shadow-[0_0_20px_rgba(251,186,100,0.3)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2">
+<span class="material-symbols-outlined">picture_as_pdf</span>
+            DOWNLOAD SHIFT REPORT PDF
+        </button>
+</div>
+<!-- 4 KPI Cards with Parallax -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter fade-in-up" style="animation-delay: 0.2s;">
+<!-- Total Inspections -->
+<div class="glass-card parallax-item rounded-2xl p-6 border-t border-primary/30 relative overflow-hidden group cursor-default">
+<div class="absolute -right-4 -top-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[100px]">fact_check</span>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant mb-2">TOTAL INSPECTIONS</p>
+<div class="flex items-baseline gap-2">
+<h3 class="font-headline-lg text-headline-lg text-on-surface count-up" data-value="12482">0</h3>
+<span class="text-secondary text-xs font-display-mono">+4.2%</span>
+</div>
+<div class="mt-4 h-1 w-full bg-surface-container rounded-full overflow-hidden">
+<div class="h-full copper-gradient w-[78%] shadow-[0_0_10px_rgba(251,186,100,0.5)]"></div>
+</div>
+</div>
+<!-- Acceptance Rate -->
+<div class="glass-card parallax-item rounded-2xl p-6 border-t border-primary/30 relative overflow-hidden group cursor-default">
+<div class="absolute -right-4 -top-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[100px]">verified</span>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant mb-2">ACCEPTANCE RATE</p>
+<div class="flex items-baseline gap-2">
+<h3 class="font-headline-lg text-headline-lg text-on-surface count-up" data-suffix="%" data-value="99.2">0</h3>
+<span class="text-secondary text-xs font-display-mono">OPTIMAL</span>
+</div>
+<div class="mt-4 flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary led-pulse shadow-[0_0_8px_rgba(251,186,100,0.8)]"></div>
+<span class="font-display-mono text-[10px] text-primary">LIVE STREAM ACTIVE</span>
+</div>
+</div>
+<!-- Top Defect -->
+<div class="glass-card parallax-item rounded-2xl p-6 border-t border-primary/30 relative overflow-hidden group cursor-default">
+<div class="absolute -right-4 -top-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[100px]">warning</span>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant mb-2">TOP DEFECT</p>
+<div class="flex items-baseline gap-2">
+<h3 class="font-headline-lg text-headline-lg text-on-surface uppercase">Surface Gap</h3>
+</div>
+<p class="font-display-mono text-[10px] text-on-surface-variant mt-4">LOCATED: SECTION 4-B</p>
+</div>
+<!-- Shield Triggers -->
+<div class="glass-card parallax-item rounded-2xl p-6 border-t border-primary/30 relative overflow-hidden group cursor-default">
+<div class="absolute -right-4 -top-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[100px]">shield</span>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant mb-2">SHIELD TRIGGERS</p>
+<div class="flex items-baseline gap-2">
+<h3 class="font-headline-lg text-headline-lg text-on-surface count-up" data-prefix="0" data-value="2">0</h3>
+<span class="critical-pulse text-error bg-error-container/20 px-2 py-0.5 rounded border border-error/20 text-xs font-display-mono ml-2">CRITICAL</span>
+</div>
+<div class="mt-4 flex -space-x-2">
+<div class="w-6 h-6 rounded-full border border-surface bg-primary-container flex items-center justify-center text-[10px] font-bold">JD</div>
+<div class="w-6 h-6 rounded-full border border-surface bg-secondary-container flex items-center justify-center text-[10px] font-bold">MK</div>
+</div>
+</div>
+</div>
+<!-- Middle: Quality Trends Chart Area (Glassmorphic Metallic) -->
+<div class="glass-card metallic-border rounded-2xl p-gutter fade-in-up relative overflow-hidden parallax-item" style="animation-delay: 0.3s;">
+<div class="flex justify-between items-center mb-lg">
+<div>
+<h4 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface">Quality Trends</h4>
+<p class="text-on-surface-variant font-label-sm text-label-sm">System accuracy over the last 7 production cycles</p>
+</div>
+<div class="flex gap-2">
+<button class="bg-surface-container-high px-4 py-2 rounded-lg text-label-sm font-label-sm text-primary border border-primary/20">7D</button>
+<button class="bg-transparent px-4 py-2 rounded-lg text-label-sm font-label-sm text-on-surface-variant hover:text-on-surface transition-colors">30D</button>
+</div>
+</div>
+<div class="h-64 w-full relative group">
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 1000 300">
+<defs>
+<lineargradient id="chartGradient" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" style="stop-color:rgba(251, 186, 100, 0.4); stop-opacity:1"></stop>
+<stop offset="100%" style="stop-color:rgba(251, 186, 100, 0); stop-opacity:1"></stop>
+</lineargradient>
+<filter id="glow">
+<fegaussianblur result="coloredBlur" stddeviation="3"></fegaussianblur>
+<femerge>
+<femergenode in="coloredBlur"></femergenode>
+<femergenode in="SourceGraphic"></femergenode>
+</femerge>
+</filter>
+</defs>
+<!-- Grid Lines -->
+<line stroke="rgba(255,255,255,0.05)" stroke-width="1" x1="0" x2="1000" y1="50" y2="50"></line>
+<line stroke="rgba(255,255,255,0.05)" stroke-width="1" x1="0" x2="1000" y1="150" y2="150"></line>
+<line stroke="rgba(255,255,255,0.05)" stroke-width="1" x1="0" x2="1000" y1="250" y2="250"></line>
+<!-- Area Chart -->
+<path d="M0,250 L100,220 L200,240 L300,180 L400,200 L500,120 L600,150 L700,80 L800,100 L900,40 L1000,60 L1000,300 L0,300 Z" fill="url(#chartGradient)"></path>
+<!-- Line -->
+<path d="M0,250 L100,220 L200,240 L300,180 L400,200 L500,120 L600,150 L700,80 L800,100 L900,40 L1000,60" fill="none" filter="url(#glow)" stroke="#fbba64" stroke-linecap="round" stroke-width="3"></path>
+<!-- Points -->
+<circle class="led-pulse glow-point" cx="500" cy="120" fill="#fbba64" r="6"></circle>
+<circle class="glow-point" cx="900" cy="40" fill="#fbba64" r="6"></circle>
+</svg>
+<!-- Tooltip Mockup -->
+<div class="absolute top-4 left-1/2 -translate-x-1/2 bg-surface-container-highest border border-primary/30 p-3 rounded-lg shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+<p class="font-display-mono text-[10px] text-primary">CYCLE 042 - MAR 14</p>
+<p class="text-on-surface font-bold">Precision: 99.8%</p>
+</div>
+</div>
+<div class="flex justify-between mt-6 font-display-mono text-[10px] text-on-surface-variant/40">
+<span>MAR 08</span>
+<span>MAR 09</span>
+<span>MAR 10</span>
+<span>MAR 11</span>
+<span>MAR 12</span>
+<span>MAR 13</span>
+<span>MAR 14</span>
+</div>
+</div>
+<!-- Bottom: Recent Escalations (Glassmorphic Metallic) -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter fade-in-up" style="animation-delay: 0.4s;">
+<div class="lg:col-span-2 glass-card metallic-border rounded-2xl p-6 flex flex-col h-[400px] parallax-item">
+<div class="flex items-center justify-between mb-6">
+<h4 class="font-headline-lg-mobile text-on-surface flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary">assignment_late</span>
+                    Recent Escalations
+                </h4>
+<span class="critical-pulse font-display-mono text-[12px] bg-error-container/20 text-error px-3 py-1 rounded-full border border-error/30">3 ACTION REQUIRED</span>
+</div>
+<div class="flex-1 overflow-y-auto space-y-4 pr-2">
+<!-- Item 1 -->
+<div class="p-4 rounded-xl bg-surface-container-low border border-outline-variant hover:border-primary/40 transition-colors group cursor-pointer">
+<div class="flex items-start justify-between">
+<div class="flex gap-4">
+<div class="w-10 h-10 rounded-lg bg-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant">camera_front</span>
+</div>
+<div>
+<h5 class="text-on-surface font-semibold text-body-md">Thermal Signature Deviation</h5>
+<p class="text-on-surface-variant text-[12px]">Section A-9 • 04:12 PM • 2.4mm Tolerance Exceeded</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="p-4 rounded-xl bg-surface-container-low border border-outline-variant hover:border-primary/40 transition-colors group cursor-pointer">
+<div class="flex items-start justify-between">
+<div class="flex gap-4">
+<div class="w-10 h-10 rounded-lg bg-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant">precision_manufacturing</span>
+</div>
+<div>
+<h5 class="text-on-surface font-semibold text-body-md">Mechanical Sync Error</h5>
+<p class="text-on-surface-variant text-[12px]">Arm #12 • 02:45 PM • Automated Shield Applied</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="p-4 rounded-xl bg-surface-container-low border border-outline-variant hover:border-primary/40 transition-colors group cursor-pointer">
+<div class="flex items-start justify-between">
+<div class="flex gap-4">
+<div class="w-10 h-10 rounded-lg bg-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant">sensors</span>
+</div>
+<div>
+<h5 class="text-on-surface font-semibold text-body-md">Vision Sensor Obstructed</h5>
+<p class="text-on-surface-variant text-[12px]">Camera 04 • 01:20 PM • Manual Review Triggered</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Side Card: Shift Intelligence -->
+<div class="glass-card metallic-border rounded-2xl p-6 h-[400px] flex flex-col parallax-item">
+<h4 class="font-headline-lg-mobile text-on-surface mb-6">Shift Intelligence</h4>
+<div class="flex-1 space-y-6">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full border-2 border-primary p-0.5">
+<img class="w-full h-full rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBN5Fakg1D09h0ULkV6JzpyI0oKer73oOPLpWccCkhe7JSFZEY4SR32Wu_Y7OOFHmvZumH2n6mtXO3THJQVvzOvDRk4tMkY3znatMCKwle2yL2Y-jm0ztAU_dJXIxOCWvwBrMx-3L_f5T76u7j53z-ZtOV96GQJgm2W0v_-_Pe6vwkjs_NoahaKxw-Y_aVTMQWV2y4mNHmByq6rk1OCRbS5y4RcqkDftrzUkZGBhlFvFKHg9CqVb8Qi_FZJKqXUkUOlWmXIvfAiIwU"/>
+</div>
+<div>
+<p class="text-on-surface font-medium text-sm">Marcus King</p>
+<p class="text-primary text-[10px] font-display-mono">LEAD TECHNICIAN</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full border-2 border-secondary p-0.5">
+<img class="w-full h-full rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuArSFwKOPOaMYA79VozG8CqoFrgmz0VLKMQKc0SCXktmq_OF0eaxCbKIYy5d7-KqlHvRzxGlroM64GXhWexQCJveafSCmj7oM2biH-2ZP0lVZPJWPd5Liy3pii2FpgLsIMLHtedPrEyGEiinU7SdoU1_W6RJcjvfRNurNgRz9sa1OJpXlLoGr9wK67hnKnCO1cfMWFzNwFRldsfLJ-g8v0hu0mWHTyzgG_XhYK-Q77PSY0Z7-yeU6xTsIKcsn1az3TAI4ECQRPu63I"/>
+</div>
+<div>
+<p class="text-on-surface font-medium text-sm">Sarah Chen</p>
+<p class="text-secondary text-[10px] font-display-mono">QA SPECIALIST</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">monitoring</span>
+</div>
+</div>
+<div class="bg-primary-container/10 border border-primary/20 p-4 rounded-xl mt-auto">
+<p class="font-display-mono text-[10px] text-primary-fixed-dim uppercase mb-1">Efficiency Rating</p>
+<div class="flex items-end gap-2">
+<span class="text-2xl font-bold text-on-surface count-up" data-suffix="%" data-value="94">0</span>
+<span class="text-[10px] text-primary-fixed-dim mb-1">Optimal Output</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] rounded-full bg-surface-container-low/80 backdrop-blur-[20px] border border-primary/20 shadow-[0px_24px_48px_rgba(0,0,0,0.5)] z-50 flex justify-around items-center h-16 max-w-md">
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 px-6 py-2" href="#">
+<span class="material-symbols-outlined">photo_camera</span>
+<span class="font-label-sm text-label-sm">Camera</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 px-6 py-2" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="font-label-sm text-label-sm">History</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary-fixed-dim bg-primary-container/20 rounded-full px-6 py-2 shadow-[0_0_15px_rgba(251,186,100,0.3)]" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-label-sm text-label-sm font-bold">Dashboard</span>
+</a>
+</nav>
+<script>
+    // Spotlight Effect
+    document.addEventListener('mousemove', (e) => {
+        const spotlight = document.getElementById('spotlight');
+        spotlight.style.setProperty('--mouse-x', `${e.clientX}px`);
+        spotlight.style.setProperty('--mouse-y', `${e.clientY}px`);
+    });
+
+    // Count Up Animation
+    const countUp = (el) => {
+        const target = parseFloat(el.getAttribute('data-value'));
+        const suffix = el.getAttribute('data-suffix') || '';
+        const prefix = el.getAttribute('data-prefix') || '';
+        const duration = 2000;
+        const startTime = performance.now();
+
+        const update = (now) => {
+            const elapsed = now - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easedProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+            
+            let current = easedProgress * target;
+            
+            if (target % 1 === 0) {
+                el.innerText = prefix + Math.floor(current).toLocaleString() + suffix;
+            } else {
+                el.innerText = prefix + current.toFixed(1) + suffix;
+            }
+
+            if (progress < 1) requestAnimationFrame(update);
+        };
+        requestAnimationFrame(update);
+    };
+
+    // Intersection Observer for animations
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                if (entry.target.classList.contains('count-up')) {
+                    countUp(entry.target);
+                } else {
+                    entry.target.classList.add('fade-in-up');
+                }
+                observer.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.count-up').forEach(el => observer.observe(el));
+    document.querySelectorAll('.fade-in-up').forEach(el => observer.observe(el));
+
+    // 3D Parallax Tilt Effect for KPI Cards and Glass Panels
+    const applyParallax = (elements, intensity = 8) => {
+        elements.forEach(el => {
+            el.addEventListener('mousemove', (e) => {
+                const rect = el.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                const rotateX = ((y - centerY) / centerY) * -intensity;
+                const rotateY = ((x - centerX) / centerX) * intensity;
+                
+                el.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+                
+                // Dynamic border lighting follow
+                if (el.classList.contains('metallic-border')) {
+                    const angle = Math.atan2(y - centerY, x - centerX) * 180 / Math.PI;
+                    el.style.borderImage = `linear-gradient(${angle + 90}deg, rgba(251, 186, 100, 0.6) 0%, rgba(251, 186, 100, 0.1) 50%, rgba(251, 186, 100, 0.6) 100%) 1`;
+                }
+            });
+
+            el.addEventListener('mouseleave', () => {
+                el.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`;
+                if (el.classList.contains('metallic-border')) {
+                    el.style.borderImage = '';
+                }
+            });
+        });
+    };
+
+    applyParallax(document.querySelectorAll('.parallax-item'), 6);
+
+    // Magnetic Button Effect
+    document.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('mousemove', (e) => {
+            const rect = btn.getBoundingClientRect();
+            const x = e.clientX - rect.left - rect.width / 2;
+            const y = e.clientY - rect.top - rect.height / 2;
+            btn.style.transform = `translate(${x * 0.15}px, ${y * 0.15}px) scale(1.05)`;
+        });
+        btn.addEventListener('mouseleave', () => {
+            btn.style.transform = `translate(0, 0) scale(1)`;
+        });
+    });
+</script>
+</body></html>

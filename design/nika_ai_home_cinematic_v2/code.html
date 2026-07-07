@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NIKA AI | Industrial Luxury Quality Engineering</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Geist:wght@400;500;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed-dim": "#C58B3A",
+                    "tertiary-container": "#5c9ccd",
+                    "surface-dim": "#0D1117",
+                    "on-secondary-fixed-variant": "#7b2f00",
+                    "on-primary-fixed-variant": "#643f00",
+                    "on-secondary": "#571f00",
+                    "tertiary": "#90cdff",
+                    "inverse-primary": "#845400",
+                    "surface": "#0D1117",
+                    "on-primary-fixed": "#2a1800",
+                    "on-tertiary-fixed": "#001e30",
+                    "error": "#ffb4ab",
+                    "on-surface": "#ece0d6",
+                    "on-primary-container": "#442900",
+                    "surface-variant": "#1c2128",
+                    "primary-fixed": "#ffddb6",
+                    "on-secondary-fixed": "#351000",
+                    "primary-container": "#C58B3A",
+                    "surface-tint": "#C58B3A",
+                    "inverse-on-surface": "#362f29",
+                    "inverse-surface": "#ece0d6",
+                    "on-tertiary-fixed-variant": "#004b72",
+                    "error-container": "#93000a",
+                    "surface-container-lowest": "#080b0f",
+                    "on-surface-variant": "#d5c4b2",
+                    "surface-container-high": "#1c2128",
+                    "outline-variant": "#514537",
+                    "on-secondary-container": "#571f00",
+                    "secondary-container": "#FF6A00",
+                    "surface-bright": "#1c2128",
+                    "on-tertiary-container": "#00324d",
+                    "on-background": "#ece0d6",
+                    "surface-container-low": "#12181f",
+                    "outline": "#9d8e7e",
+                    "on-error-container": "#ffdad6",
+                    "on-error": "#690005",
+                    "surface-container-highest": "#1c2128",
+                    "secondary-fixed-dim": "#FF6A00",
+                    "surface-container": "#12181f",
+                    "on-tertiary": "#003350",
+                    "on-primary": "#0D1117",
+                    "secondary-fixed": "#ffdbcc",
+                    "background": "#0D1117",
+                    "tertiary-fixed": "#cbe6ff",
+                    "secondary": "#FF6A00",
+                    "primary": "#C58B3A",
+                    "tertiary-fixed-dim": "#90cdff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "sm": "12px",
+                    "md": "24px",
+                    "base": "8px",
+                    "gutter": "24px",
+                    "xl": "80px",
+                    "margin-mobile": "20px",
+                    "margin-desktop": "64px",
+                    "lg": "48px"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "label-sm": ["Geist"],
+                    "display-mono": ["Geist"],
+                    "headline-lg-mobile": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-xl": ["Inter"]
+            },
+            "fontSize": {
+                    "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                    "display-mono": ["14px", {"lineHeight": "1.5", "letterSpacing": "0.1em", "fontWeight": "500"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-xl": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        .glass-card {
+            background: rgba(13, 17, 23, 0.7);
+            backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(197, 139, 58, 0.3);
+            box-shadow: 0px 32px 64px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(197, 139, 58, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .rim-light {
+            background: linear-gradient(135deg, rgba(197, 139, 58, 0.4) 0%, rgba(13, 17, 23, 0) 100%);
+        }
+
+        .fade-in-up {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 1s cubic-bezier(0.2, 0.8, 0.2, 1), transform 1s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .fade-in-up.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .led-pulse {
+            animation: ledPulse 2s infinite ease-in-out;
+        }
+
+        @keyframes ledPulse {
+            0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 12px #C58B3A; }
+            50% { opacity: 0.4; transform: scale(0.85); box-shadow: 0 0 4px #C58B3A; }
+        }
+
+        .parallax-target {
+            transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+            transform-style: preserve-3d;
+            perspective: 1200px;
+        }
+
+        .shimmer-btn {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .shimmer-btn::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -150%;
+            width: 300%;
+            height: 200%;
+            background: linear-gradient(
+                75deg,
+                transparent,
+                rgba(255, 255, 255, 0) 45%,
+                rgba(255, 255, 255, 0.4) 50%,
+                rgba(255, 255, 255, 0) 55%,
+                transparent
+            );
+            transform: rotate(-15deg);
+            animation: metallic-shimmer 5s infinite cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes metallic-shimmer {
+            0% { left: -150%; }
+            20% { left: 150%; }
+            100% { left: 150%; }
+        }
+
+        #copper-spotlight {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            background: radial-gradient(
+                700px circle at var(--x, 50%) var(--y, 50%),
+                rgba(197, 139, 58, 0.12) 0%,
+                transparent 85%
+            );
+            mix-blend-mode: screen;
+        }
+
+        body {
+            background-color: #080b0f;
+            overflow-x: hidden;
+            min-height: 100dvh;
+        }
+
+        section, header, footer {
+            position: relative;
+            z-index: 10;
+        }
+
+        .crisp-highlight {
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            border: 1px solid rgba(197, 139, 58, 0.4);
+            pointer-events: none;
+        }
+
+        #shader-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="text-on-surface font-body-md">
+<div id="copper-spotlight"></div>
+<!-- Procedural Shader Background from SCREEN_12 -->
+<canvas id="shader-bg"></canvas>
+<!-- Top Navigation -->
+<header class="fixed top-0 w-full z-[100] bg-surface-container-lowest/80 backdrop-blur-2xl border-b border-primary/20">
+<nav class="flex justify-between items-center px-6 md:px-margin-desktop h-16 w-full">
+<div class="flex items-center gap-4">
+<span class="font-display-mono text-display-mono tracking-[0.25em] text-primary-fixed-dim uppercase font-bold">NIKA AI</span>
+</div>
+<div class="hidden md:flex gap-8 items-center">
+<a class="text-primary font-bold font-label-sm text-label-sm tracking-wider uppercase transition-colors duration-300" href="#">Dashboard</a>
+<a class="text-on-surface-variant font-label-sm text-label-sm tracking-wider uppercase hover:text-primary transition-colors duration-300" href="#">History</a>
+<a class="text-on-surface-variant font-label-sm text-label-sm tracking-wider uppercase hover:text-primary transition-colors duration-300" href="#">Camera</a>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary cursor-pointer active:scale-95 transition-transform" data-icon="settings">settings</span>
+<div class="w-8 h-8 rounded-full bg-primary-container/20 border border-primary/30 flex items-center justify-center overflow-hidden">
+<img alt="Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0x4Iqtl0LhmR8yrKvKMFJ0SE8qZ20bZflEceHCEa4ak-4uRO0-5c1HHJIUUhIx2CKg9mg52dbAgkJ1F0iz5s8F5h68l23wLq9daThl6p710rg6RPM0g8EeBl5anIaoBtiErB5wV7Rpf5BK5FkAlF4V0Y0X6u7-WGrjzwzL8ftIpkqRKCGf4uk97pMx1YvbkRd2fa6u2X_-IoIC_3vB6qszoYZOd3hUU8IJw8dnZwNrDb6OzNG_QkZgPELCXeHwhyx_4YduiEsVmI"/>
+</div>
+</div>
+</nav>
+</header>
+<!-- Hero Section -->
+<main class="relative min-h-screen w-full flex flex-col items-center justify-center pt-16 overflow-hidden">
+<div class="relative z-10 container mx-auto px-6 text-center">
+<div class="fade-in-up active">
+<h1 class="font-headline-xl text-headline-xl md:text-[140px] md:leading-[0.85] text-on-surface font-extrabold tracking-tighter mb-6 bg-gradient-to-b from-on-surface to-on-surface-variant/40 bg-clip-text text-transparent">
+                NIKA AI
+            </h1>
+<p class="font-display-mono text-display-mono text-primary-fixed-dim tracking-[0.5em] uppercase mb-12">
+                Your AI Quality Engineer
+            </p>
+</div>
+<div class="flex flex-col items-center gap-10 fade-in-up active" style="transition-delay: 200ms;">
+<!-- Shimmering CTA -->
+<div class="parallax-target" data-tilt="">
+<button class="shimmer-btn group relative px-12 py-6 bg-gradient-to-r from-primary-container to-secondary-container rounded-full text-on-primary font-bold text-lg overflow-hidden shadow-[0_20px_50px_rgba(255,106,0,0.3)] hover:shadow-[0_30px_70px_rgba(255,106,0,0.5)] transition-all" id="cta-button">
+<span class="relative z-10 flex items-center gap-3">
+                        START INSPECTION 
+                        <span class="material-symbols-outlined group-hover:translate-x-2 transition-transform duration-500" data-icon="chevron_right">chevron_right</span>
+</span>
+<div class="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
+</button>
+</div>
+<!-- Floating Glass Card -->
+<div class="parallax-target" data-tilt="">
+<div class="glass-card p-8 rounded-2xl max-w-sm w-full relative group">
+<div class="crisp-highlight"></div>
+<div class="rim-light absolute inset-0 rounded-2xl pointer-events-none opacity-50"></div>
+<div class="flex justify-between items-center mb-6">
+<div class="flex items-center gap-3">
+<div class="w-2.5 h-2.5 rounded-full bg-primary led-pulse"></div>
+<span class="font-display-mono text-[11px] text-on-surface-variant tracking-[0.2em] uppercase font-bold">Live Factory Status</span>
+</div>
+<span class="material-symbols-outlined text-primary-fixed-dim text-lg" data-icon="query_stats">query_stats</span>
+</div>
+<div class="grid grid-cols-2 gap-6">
+<div class="text-left border-l-2 border-primary/30 pl-5">
+<p class="font-display-mono text-primary text-2xl font-bold tracking-tight">99.98%</p>
+<p class="font-label-sm text-[10px] text-on-surface-variant/70 uppercase tracking-widest mt-1">Accuracy</p>
+</div>
+<div class="text-left border-l-2 border-primary/30 pl-5">
+<p class="font-display-mono text-on-surface text-2xl font-bold tracking-tight">1.2M+</p>
+<p class="font-label-sm text-[10px] text-on-surface-variant/70 uppercase tracking-widest mt-1">Inspected</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Scroll Indicator -->
+<div class="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 opacity-40">
+<span class="font-display-mono text-[9px] tracking-[0.4em] uppercase font-bold">Explore</span>
+<div class="w-[1.5px] h-16 bg-gradient-to-b from-primary via-primary/50 to-transparent"></div>
+</div>
+</main>
+<!-- Product Story Section -->
+<section class="relative bg-surface py-xl border-t border-white/5">
+<div class="container mx-auto px-6 md:px-margin-desktop fade-in-up">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-xl items-center">
+<div class="space-y-md">
+<h2 class="font-headline-lg text-[40px] leading-tight text-on-surface max-w-md">Industrial sophistication meets neural precision.</h2>
+<p class="text-on-surface-variant text-body-lg font-body-lg leading-relaxed max-w-lg">
+                    NIKA AI provides sub-millimeter visual inspection at line speeds. Our proprietary vision models identify structural micro-fractures and surface irregularities that escape the human eye, ensuring aerospace-grade quality in every frame.
+                </p>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-8">
+<div class="parallax-target p-8 border border-primary/10 rounded-2xl hover:border-primary/40 transition-all group bg-surface-container" data-tilt="">
+<div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary-fixed-dim block group-hover:scale-125 transition-transform duration-500" data-icon="biotech">biotech</span>
+</div>
+<h4 class="font-display-mono text-primary mb-3 uppercase text-xs tracking-widest font-bold">Neural Scan</h4>
+<p class="text-on-surface-variant/70 text-sm leading-relaxed">Deep learning analysis of material surface density and structural integrity.</p>
+</div>
+<div class="parallax-target p-8 border border-primary/10 rounded-2xl hover:border-primary/40 transition-all group bg-surface-container" data-tilt="">
+<div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary-fixed-dim block group-hover:scale-125 transition-transform duration-500" data-icon="bolt">bolt</span>
+</div>
+<h4 class="font-display-mono text-primary mb-3 uppercase text-xs tracking-widest font-bold">Zero Latency</h4>
+<p class="text-on-surface-variant/70 text-sm leading-relaxed">Edge-optimized processing for high-volume, real-time manufacturing lines.</p>
+</div>
+</div>
+</div>
+<div class="relative group fade-in-up" style="transition-delay: 300ms;">
+<div class="absolute -inset-8 bg-primary/10 rounded-[3rem] blur-[100px] group-hover:bg-primary/20 transition-all duration-1000"></div>
+<div class="parallax-target relative rounded-3xl overflow-hidden border border-primary/30 aspect-square shadow-2xl" data-tilt="">
+<img alt="Robotic Inspection" class="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-1000 scale-105 group-hover:scale-100" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAbaoMa9WsMK9JPEtMRjOl4_vML2OgYfq1tB4RZY1GLIjhTr-HaR-1dJLIbkrAtmxlorZOkYv4pwsJVueniKHinaHig5F_RYezXzp41sxfpQoefPInEfk2LPsLt0fEzI6wpiRUsUDq14PYe7MLybE3OQcANRDcywOGJEMOVvikMw5XdzEg9I0FlL5bOE66_7zoXXUz_KgPlBieLSdO6UCWtsHI3mdl7EeSHBq1r1JHJHSouBZxXHrPMAyj2gUam0_0dxepWySifE9Q"/>
+<!-- HUD Overlay -->
+<div class="absolute inset-0 pointer-events-none border-[1px] border-primary/20 m-8"></div>
+<div class="absolute top-12 left-12">
+<div class="px-3 py-1 bg-secondary/90 text-on-primary font-display-mono text-[10px] tracking-widest uppercase font-bold">SCANNING...</div>
+</div>
+<div class="absolute bottom-0 left-0 w-full h-1.5 bg-surface-variant">
+<div class="h-full bg-primary shadow-[0_0_20px_#C58B3A] w-3/4 animate-pulse"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Bento Grid Tech Specs -->
+<section class="py-xl bg-surface-container-lowest overflow-hidden">
+<div class="container mx-auto px-6 md:px-margin-desktop fade-in-up">
+<div class="text-center mb-20">
+<span class="font-display-mono text-primary-fixed-dim text-xs tracking-[0.6em] uppercase font-bold">Architectural Layer</span>
+<h3 class="font-headline-lg text-[48px] text-on-surface mt-6">The Intelligence Ecosystem.</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Large Feature Card -->
+<div class="md:col-span-2 parallax-target" data-tilt="">
+<div class="glass-card rounded-3xl p-12 flex flex-col justify-between min-h-[400px] h-full">
+<div class="crisp-highlight"></div>
+<div>
+<div class="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-10">
+<span class="material-symbols-outlined text-primary text-4xl" data-icon="monitoring">monitoring</span>
+</div>
+<h4 class="text-3xl font-bold mb-6">Predictive Maintenance modeling</h4>
+<p class="text-on-surface-variant text-lg leading-relaxed max-w-xl">Our AI doesn't just find defects; it predicts maintenance windows by analyzing wear patterns across your entire production fleet using deep temporal analysis.</p>
+</div>
+<div class="mt-12 flex flex-wrap gap-4">
+<div class="px-6 py-2.5 bg-primary/10 border border-primary/30 rounded-full font-display-mono text-[11px] uppercase tracking-widest text-primary font-bold">Edge Optimized</div>
+<div class="px-6 py-2.5 bg-primary/10 border border-primary/30 rounded-full font-display-mono text-[11px] uppercase tracking-widest text-primary font-bold">Military-Grade Encryption</div>
+</div>
+</div>
+</div>
+<!-- Vertical Card -->
+<div class="parallax-target" data-tilt="">
+<div class="bg-surface-container-high rounded-3xl p-10 border border-primary/10 flex flex-col items-center text-center justify-center h-full hover:border-primary/40 transition-all duration-500 shadow-xl group">
+<div class="w-24 h-24 rounded-full border-2 border-primary/20 flex items-center justify-center mb-8 group-hover:border-primary/50 transition-colors">
+<span class="material-symbols-outlined text-primary text-5xl group-hover:scale-110 transition-transform" data-icon="shield_lock">shield_lock</span>
+</div>
+<h4 class="text-2xl font-bold mb-4">On-Premise Security</h4>
+<p class="text-on-surface-variant text-base leading-relaxed">Local deployment ensures your proprietary data and designs never leave your network boundary.</p>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="parallax-target" data-tilt="">
+<div class="bg-surface-container rounded-3xl p-10 border border-primary/10 h-full hover:border-primary/40 transition-all duration-500 shadow-xl">
+<span class="material-symbols-outlined text-primary-fixed-dim text-4xl mb-8" data-icon="settings_input_component">settings_input_component</span>
+<h4 class="text-xl font-bold mb-4 uppercase tracking-tight">Unified ERP Sync</h4>
+<p class="text-on-surface-variant text-sm leading-relaxed">Native bridge integration for SAP, Oracle, and Microsoft Dynamics ecosystems.</p>
+</div>
+</div>
+<div class="md:col-span-2 parallax-target" data-tilt="">
+<div class="glass-card rounded-3xl p-0 overflow-hidden relative group h-full">
+<div class="crisp-highlight"></div>
+<div class="absolute right-0 top-0 w-full h-full opacity-40 grayscale group-hover:grayscale-0 transition-all duration-1000">
+<img alt="Neural Network" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfqvw_MZASvrR6oOTyxwOFoOBJ6osgU86BKO2dDVOyWZuFJJ6GuH6xl-mnZLDto8tsAcNSBHDL-79IqTcIA4HS8Oy3WtyWo7gV5toUudaMZos560Iq-1Drsz53dlRkvuEHbsjCmWffgi5tKHsptyjBiJ0nuiZMLk8_c2e6-ezMnzkZN6Ubd070xbzfH7riuOKih6fp0YUj_fH5gBnpSSdfqH_8N6mMn_WPKB3LBelQzM3-zP6ISpYKp_MnmOw6Mo_IAH9UKfdsMa0"/>
+</div>
+<div class="relative z-10 w-full md:w-2/3 p-12 bg-gradient-to-r from-surface-container-lowest to-transparent">
+<h4 class="text-3xl font-bold mb-6">Adaptive Learning</h4>
+<p class="text-on-surface-variant text-base leading-relaxed">The system trains on new defect categories in minutes with as few as 10 sample images, cutting commissioning time by over 90%.</p>
+<div class="mt-8 flex items-center gap-4 text-primary font-bold">
+<span class="text-sm uppercase tracking-widest">Learn More</span>
+<span class="material-symbols-outlined" data-icon="arrow_right_alt">arrow_right_alt</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Mobile Navigation -->
+<nav class="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] z-[100] bg-surface-container-low/90 backdrop-blur-3xl rounded-full border border-primary/30 shadow-[0px_20px_50px_rgba(0,0,0,0.8)] h-16 flex justify-around items-center px-4">
+<div class="flex flex-col items-center justify-center text-on-surface-variant/70 px-4 py-2 transition-all hover:text-primary">
+<span class="material-symbols-outlined" data-icon="photo_camera">photo_camera</span>
+<span class="font-label-sm text-[10px] uppercase font-bold tracking-tighter">Camera</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant/70 px-4 py-2 transition-all hover:text-primary">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span class="font-label-sm text-[10px] uppercase font-bold tracking-tighter">History</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-primary bg-primary rounded-full px-6 py-2 shadow-[0_0_20px_rgba(197,139,58,0.4)] scale-95">
+<span class="material-symbols-outlined" data-icon="grid_view">grid_view</span>
+<span class="font-label-sm text-[10px] uppercase font-bold tracking-tighter">Dash</span>
+</div>
+</nav>
+<!-- Footer -->
+<footer class="bg-surface-container-lowest py-xl border-t border-white/5">
+<div class="container mx-auto px-6 md:px-margin-desktop fade-in-up">
+<div class="flex flex-col md:flex-row justify-between items-start gap-16">
+<div>
+<span class="font-display-mono text-primary text-xl tracking-[0.3em] uppercase mb-8 block font-bold">NIKA AI</span>
+<p class="text-on-surface-variant/60 text-sm max-w-sm leading-relaxed">Engineered for the frontier of intelligent manufacturing. Precision, security, and velocity at the core of every frame.</p>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-16">
+<div class="flex flex-col gap-6">
+<span class="font-display-mono text-[11px] text-primary-fixed-dim uppercase tracking-[0.3em] font-bold">Platform</span>
+<a class="text-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Neural Core</a>
+<a class="text-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Edge Vision</a>
+<a class="text-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Security</a>
+</div>
+<div class="flex flex-col gap-6">
+<span class="font-display-mono text-[11px] text-primary-fixed-dim uppercase tracking-[0.3em] font-bold">Network</span>
+<a class="text-sm text-on-surface-variant hover:text-primary transition-colors" href="#">LinkedIn</a>
+<a class="text-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Terminal</a>
+<a class="text-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Source</a>
+</div>
+<div class="flex flex-col gap-6">
+<span class="font-display-mono text-[11px] text-primary-fixed-dim uppercase tracking-[0.3em] font-bold">Legal</span>
+<a class="text-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Privacy</a>
+<a class="text-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Terms</a>
+</div>
+</div>
+</div>
+<div class="mt-24 pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
+<span class="text-[10px] font-display-mono text-on-surface-variant/40 tracking-widest uppercase">© 2024 NIKA INTELLIGENCE SYSTEMS — ALL RIGHTS RESERVED</span>
+<span class="text-[10px] font-display-mono text-on-surface-variant/40 tracking-widest uppercase">BUILD 4.12.0_STABLE // HOUSTON_TX</span>
+</div>
+</div>
+</footer>
+<script>
+    // --- Procedural Shader Background (from SCREEN_12) ---
+    (function() {
+      const canvas = document.getElementById('shader-bg');
+      function syncSize() {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width  = w;
+          canvas.height = h;
+        }
+      }
+      window.addEventListener('resize', syncSize);
+      syncSize();
+
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (!gl) return;
+      const vs = `attribute vec2 a_position;
+    varying vec2 v_texCoord;
+    void main() {
+      v_texCoord = a_position * 0.5 + 0.5;
+      gl_Position = vec4(a_position, 0.0, 1.0);
+    }`;
+      const fs = `precision highp float;
+    varying vec2 v_texCoord;
+    uniform float u_time;
+    uniform vec2 u_resolution;
+    uniform vec2 u_mouse;
+
+    void main() {
+        vec2 uv = v_texCoord;
+        vec2 mouse = u_mouse / u_resolution;
+        
+        // Metallic liquid noise
+        float noise = sin(uv.x * 6.0 + u_time * 0.2) * cos(uv.y * 5.0 - u_time * 0.1);
+        noise += sin(uv.y * 10.0 + u_time * 0.3) * cos(uv.x * 8.0 + u_time * 0.2);
+        
+        // Graphite Black Base
+        vec3 color = vec3(0.05, 0.06, 0.09); 
+        
+        // Copper/Orange highlights based on noise and mouse
+        vec3 accent1 = vec3(0.77, 0.55, 0.23); // Copper Gold (#C58B3A)
+        vec3 accent2 = vec3(1.0, 0.42, 0.0);   // AMD Orange (#FF6A00)
+        
+        float dist = distance(uv, mouse);
+        float glow = smoothstep(0.6, 0.0, dist) * 0.15;
+        
+        float highlight = smoothstep(0.3, 0.9, noise * 0.5 + 0.5);
+        color = mix(color, accent1, highlight * 0.04);
+        color += accent2 * glow;
+        
+        gl_FragColor = vec4(color, 1.0);
+    }`;
+      function cs(type, src) {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        return s;
+      }
+      const prog = gl.createProgram();
+      gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs));
+      gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs));
+      gl.linkProgram(prog);
+      gl.useProgram(prog);
+      const buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+      const pos = gl.getAttribLocation(prog, 'a_position');
+      gl.enableVertexAttribArray(pos);
+      gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+      const uTime = gl.getUniformLocation(prog, 'u_time');
+      const uRes = gl.getUniformLocation(prog, 'u_resolution');
+      const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+
+      let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+      window.addEventListener('mousemove', (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const nx = (event.clientX - rect.left) / rect.width;
+        const ny = 1.0 - (event.clientY - rect.top) / rect.height;
+        mouse.x = nx * canvas.width;
+        mouse.y = ny * canvas.height;
+        
+        // Sync custom spotlight div
+        const spotlight = document.getElementById('copper-spotlight');
+        spotlight.style.setProperty('--x', event.clientX + 'px');
+        spotlight.style.setProperty('--y', event.clientY + 'px');
+      });
+
+      function render(t) {
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        if (uTime) gl.uniform1f(uTime, t * 0.001);
+        if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height);
+        if (uMouse) gl.uniform2f(uMouse, mouse.x, mouse.y);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        requestAnimationFrame(render);
+      }
+      render(0);
+    })();
+
+    // 3D Parallax Tilt Effect (2-3 degrees)
+    const tiltElements = document.querySelectorAll('[data-tilt]');
+    tiltElements.forEach(el => {
+        el.addEventListener('mousemove', (e) => {
+            const rect = el.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            
+            const rotateX = ((y - centerY) / centerY) * -3; // max 3deg
+            const rotateY = ((x - centerX) / centerX) * 3; // max 3deg
+            
+            el.style.transform = `perspective(1200px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.03, 1.03, 1.03)`;
+        });
+        
+        el.addEventListener('mouseleave', () => {
+            el.style.transform = `perspective(1200px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`;
+        });
+    });
+
+    // Intersection Observer for scroll animations
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('active');
+            }
+        });
+    }, observerOptions);
+
+    document.querySelectorAll('.fade-in-up').forEach(el => {
+        observer.observe(el);
+    });
+
+    // Magnetic Button logic
+    const button = document.getElementById('cta-button');
+    if(button) {
+        button.parentElement.addEventListener('mousemove', (e) => {
+            const rect = button.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const deltaX = (x - centerX) / 10;
+            const deltaY = (y - centerY) / 10;
+            button.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+        });
+        
+        button.parentElement.addEventListener('mouseleave', () => {
+            button.style.transform = `translate(0, 0)`;
+        });
+    }
+</script>
+</body></html>

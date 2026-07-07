@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NIKA AI | Industrial Luxury Quality Engineering</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Geist:wght@400;500;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed-dim": "#fbba64",
+                    "tertiary-container": "#5c9ccd",
+                    "surface-dim": "#17130d",
+                    "on-secondary-fixed-variant": "#7b2f00",
+                    "on-primary-fixed-variant": "#643f00",
+                    "on-secondary": "#571f00",
+                    "tertiary": "#90cdff",
+                    "inverse-primary": "#845400",
+                    "surface": "#17130d",
+                    "on-primary-fixed": "#2a1800",
+                    "on-tertiary-fixed": "#001e30",
+                    "error": "#ffb4ab",
+                    "on-surface": "#ece0d6",
+                    "on-primary-container": "#442900",
+                    "surface-variant": "#3a342d",
+                    "primary-fixed": "#ffddb6",
+                    "on-secondary-fixed": "#351000",
+                    "primary-container": "#c58b3a",
+                    "surface-tint": "#fbba64",
+                    "inverse-on-surface": "#362f29",
+                    "inverse-surface": "#ece0d6",
+                    "on-tertiary-fixed-variant": "#004b72",
+                    "error-container": "#93000a",
+                    "surface-container-lowest": "#120d08",
+                    "on-surface-variant": "#d5c4b2",
+                    "surface-container-high": "#2f2923",
+                    "outline-variant": "#514537",
+                    "on-secondary-container": "#571f00",
+                    "secondary-container": "#ff6a00",
+                    "surface-bright": "#3f3831",
+                    "on-tertiary-container": "#00324d",
+                    "on-background": "#ece0d6",
+                    "surface-container-low": "#201b15",
+                    "outline": "#9d8e7e",
+                    "on-error-container": "#ffdad6",
+                    "on-error": "#690005",
+                    "surface-container-highest": "#3a342d",
+                    "secondary-fixed-dim": "#ffb694",
+                    "surface-container": "#241f19",
+                    "on-tertiary": "#003350",
+                    "on-primary": "#462a00",
+                    "secondary-fixed": "#ffdbcc",
+                    "background": "#17130d",
+                    "tertiary-fixed": "#cbe6ff",
+                    "secondary": "#ffb694",
+                    "primary": "#fbba64",
+                    "tertiary-fixed-dim": "#90cdff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "sm": "12px",
+                    "md": "24px",
+                    "base": "8px",
+                    "gutter": "24px",
+                    "xl": "80px",
+                    "margin-mobile": "20px",
+                    "margin-desktop": "64px",
+                    "lg": "48px"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "label-sm": ["Geist"],
+                    "display-mono": ["Geist"],
+                    "headline-lg-mobile": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-xl": ["Inter"]
+            },
+            "fontSize": {
+                    "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                    "display-mono": ["14px", {"lineHeight": "1.5", "letterSpacing": "0.1em", "fontWeight": "500"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-xl": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        .glass-card {
+            background: rgba(32, 39, 51, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(251, 186, 100, 0.2);
+            box-shadow: 0px 24px 48px rgba(0, 0, 0, 0.5);
+        }
+
+        .rim-light {
+            background: linear-gradient(180deg, rgba(251, 186, 100, 0.3) 0%, rgba(23, 19, 13, 0) 100%);
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .led-pulse {
+            animation: ledPulse 2s infinite ease-in-out;
+        }
+
+        @keyframes ledPulse {
+            0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 5px #fbba64; }
+            50% { opacity: 0.5; transform: scale(0.8); box-shadow: 0 0 2px #fbba64; }
+        }
+
+        .magnetic-button {
+            transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .gradient-text {
+            background: linear-gradient(to right, #fbba64, #ff6a00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        body {
+            background-color: #0D1117;
+            overflow-x: hidden;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="text-on-surface font-body-md">
+<!-- Top Navigation -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl border-b border-primary/30 shadow-[0px_24px_48px_rgba(0,0,0,0.5)]">
+<nav class="flex justify-between items-center px-6 md:px-margin-desktop h-16 w-full">
+<div class="flex items-center gap-4">
+<span class="font-display-mono text-display-mono tracking-widest text-primary-fixed-dim uppercase">NIKA AI</span>
+</div>
+<div class="hidden md:flex gap-8 items-center">
+<a class="text-primary font-bold font-label-sm text-label-sm transition-colors duration-300" href="#">Dashboard</a>
+<a class="text-on-surface-variant font-label-sm text-label-sm hover:text-primary transition-colors duration-300" href="#">History</a>
+<a class="text-on-surface-variant font-label-sm text-label-sm hover:text-primary transition-colors duration-300" href="#">Camera</a>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary cursor-pointer active:scale-95 transition-transform" data-icon="settings">settings</span>
+<div class="w-8 h-8 rounded-full bg-primary-container/20 border border-primary/30 flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional high-definition headshot of a precision engineer in a dark industrial setting. The lighting is dramatic and low-key, highlighting technical equipment in the background. The aesthetic is clean, modern, and high-status." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0x4Iqtl0LhmR8yrKvKMFJ0SE8qZ20bZflEceHCEa4ak-4uRO0-5c1HHJIUUhIx2CKg9mg52dbAgkJ1F0iz5s8F5h68l23wLq9daThl6p710rg6RPM0g8EeBl5anIaoBtiErB5wV7Rpf5BK5FkAlF4V0Y0X6u7-WGrjzwzL8ftIpkqRKCGf4uk97pMx1YvbkRd2fa6u2X_-IoIC_3vB6qszoYZOd3hUU8IJw8dnZwNrDb6OzNG_QkZgPELCXeHwhyx_4YduiEsVmI"/>
+</div>
+</div>
+</nav>
+</header>
+<!-- Hero Section -->
+<main class="relative min-h-screen w-full flex flex-col items-center justify-center pt-16 overflow-hidden">
+<!-- Shader Background -->
+
+<!-- Content Overlay -->
+<div class="relative z-10 container mx-auto px-6 text-center">
+<div class="fade-in-up" style="animation-delay: 0.1s;">
+<h1 class="font-headline-xl text-headline-xl md:text-[120px] md:leading-[0.9] text-on-surface font-extrabold tracking-tighter mb-4">
+                    NIKA AI
+                </h1>
+<p class="font-display-mono text-display-mono text-primary-fixed-dim tracking-[0.3em] uppercase mb-12">
+                    Your AI Quality Engineer
+                </p>
+</div>
+<div class="flex flex-col items-center gap-8 fade-in-up" style="animation-delay: 0.3s;">
+<!-- Magnetic Button -->
+<button class="magnetic-button group relative px-10 py-5 bg-gradient-to-r from-primary-container to-secondary-container rounded-full text-on-primary font-bold text-lg overflow-hidden shadow-[0_0_30px_rgba(251,186,100,0.3)] hover:shadow-[0_0_50px_rgba(251,186,100,0.5)] transition-all" id="cta-button">
+<span class="relative z-10 flex items-center gap-2">
+                        Start Inspection 
+                        <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform" data-icon="arrow_forward">arrow_forward</span>
+</span>
+<div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+</button>
+<!-- Floating Glass Card: Factory Stats -->
+<div class="glass-card p-6 rounded-2xl max-w-sm w-full relative">
+<div class="rim-light absolute inset-0 rounded-2xl pointer-events-none opacity-50"></div>
+<div class="flex justify-between items-center mb-4">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary led-pulse"></div>
+<span class="font-display-mono text-[10px] text-on-surface-variant tracking-widest uppercase">Live Factory Stats</span>
+</div>
+<span class="material-symbols-outlined text-primary-fixed-dim text-sm" data-icon="factory">factory</span>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="text-left border-l border-primary/20 pl-4">
+<p class="font-display-mono text-primary text-xl">99.8%</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant/60 uppercase">Accuracy</p>
+</div>
+<div class="text-left border-l border-primary/20 pl-4">
+<p class="font-display-mono text-on-surface text-xl">12.4k</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant/60 uppercase">Inspected</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Scroll Indicator -->
+<div class="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-50">
+<span class="font-display-mono text-[10px] tracking-[0.2em] uppercase">Scroll</span>
+<div class="w-[1px] h-12 bg-gradient-to-b from-primary to-transparent"></div>
+</div>
+</main>
+<!-- Product Story Section -->
+<section class="relative bg-surface py-xl border-t border-white/5">
+<div class="container mx-auto px-6 md:px-margin-desktop">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter items-center">
+<div class="space-y-md">
+<h2 class="font-headline-lg text-headline-lg text-on-surface max-w-md">Precision engineering meets neural architecture.</h2>
+<p class="text-on-surface-variant text-body-lg font-body-lg leading-relaxed max-w-lg">
+                        NIKA AI provides sub-millimeter visual inspection at line speeds, identifying structural micro-fractures and surface irregularities that escape the human eye. Our proprietary industrial vision models are trained on millions of aerospace-grade components.
+                    </p>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-8">
+<div class="p-6 border border-primary/10 rounded-xl hover:border-primary/30 transition-all group">
+<span class="material-symbols-outlined text-primary-fixed-dim mb-4 block group-hover:scale-110 transition-transform" data-icon="biotech">biotech</span>
+<h4 class="font-display-mono text-primary mb-2 uppercase text-xs tracking-widest">Neural Scan</h4>
+<p class="text-on-surface-variant/70 text-sm">Deep learning analysis of material surface density.</p>
+</div>
+<div class="p-6 border border-primary/10 rounded-xl hover:border-primary/30 transition-all group">
+<span class="material-symbols-outlined text-primary-fixed-dim mb-4 block group-hover:scale-110 transition-transform" data-icon="speed">speed</span>
+<h4 class="font-display-mono text-primary mb-2 uppercase text-xs tracking-widest">Line Velocity</h4>
+<p class="text-on-surface-variant/70 text-sm">Zero-latency processing for high-volume manufacturing.</p>
+</div>
+</div>
+</div>
+<div class="relative group">
+<div class="absolute -inset-4 bg-primary/5 rounded-3xl blur-3xl group-hover:bg-primary/10 transition-all duration-700"></div>
+<div class="relative rounded-2xl overflow-hidden border border-primary/20 aspect-video shadow-2xl">
+<img class="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-1000" data-alt="A macro cinematic shot of a robotic arm inspecting a high-tech metallic turbine blade. The lighting is cool-toned with golden rim highlights, showing steam or fine mist in the air. The depth of field is shallow, focusing on the precision sensor head. Industrial luxury aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAbaoMa9WsMK9JPEtMRjOl4_vML2OgYfq1tB4RZY1GLIjhTr-HaR-1dJLIbkrAtmxlorZOkYv4pwsJVueniKHinaHig5F_RYezXzp41sxfpQoefPInEfk2LPsLt0fEzI6wpiRUsUDq14PYe7MLybE3OQcANRDcywOGJEMOVvikMw5XdzEg9I0FlL5bOE66_7zoXXUz_KgPlBieLSdO6UCWtsHI3mdl7EeSHBq1r1JHJHSouBZxXHrPMAyj2gUam0_0dxepWySifE9Q"/>
+<!-- Progress Bar Overlay -->
+<div class="absolute bottom-0 left-0 w-full h-1 bg-surface-variant">
+<div class="h-full bg-primary shadow-[0_0_10px_#fbba64] w-2/3"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Bento Grid Tech Specs -->
+<section class="py-xl bg-surface-dim">
+<div class="container mx-auto px-6 md:px-margin-desktop">
+<div class="text-center mb-16">
+<span class="font-display-mono text-primary-fixed-dim text-xs tracking-[0.5em] uppercase">Core Integration</span>
+<h3 class="font-headline-lg text-headline-lg text-on-surface mt-4">The Intelligence layer.</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Large Feature Card -->
+<div class="md:col-span-2 glass-card rounded-2xl p-8 flex flex-col justify-between min-h-[320px]">
+<div>
+<span class="material-symbols-outlined text-primary text-4xl mb-6" data-icon="query_stats">query_stats</span>
+<h4 class="text-2xl font-bold mb-4">Predictive Failure Modeling</h4>
+<p class="text-on-surface-variant max-w-md">Our AI doesn't just find defects; it predicts maintenance windows by analyzing wear patterns across your entire production fleet.</p>
+</div>
+<div class="mt-8 flex gap-4">
+<div class="px-4 py-2 bg-primary/10 border border-primary/20 rounded-full font-display-mono text-[10px] uppercase text-primary">Edge Optimized</div>
+<div class="px-4 py-2 bg-primary/10 border border-primary/20 rounded-full font-display-mono text-[10px] uppercase text-primary">No-Cloud Option</div>
+</div>
+</div>
+<!-- Vertical Card -->
+<div class="bg-surface-container-high rounded-2xl p-8 border border-white/5 flex flex-col items-center text-center justify-center">
+<div class="w-20 h-20 rounded-full border border-primary/20 flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="security">security</span>
+</div>
+<h4 class="text-xl font-bold mb-2">Vault-Grade Security</h4>
+<p class="text-on-surface-variant text-sm">On-premise deployment ensures your proprietary designs never leave your network.</p>
+</div>
+<!-- Row 2 -->
+<div class="bg-surface-container rounded-2xl p-8 border border-white/5">
+<span class="material-symbols-outlined text-primary-fixed-dim mb-4" data-icon="hub">hub</span>
+<h4 class="font-bold mb-2">Unified ERP Sync</h4>
+<p class="text-on-surface-variant text-sm">Direct bridge to SAP, Oracle, and Microsoft Dynamics.</p>
+</div>
+<div class="md:col-span-2 glass-card rounded-2xl p-8 overflow-hidden relative group">
+<div class="absolute right-0 top-0 w-1/2 h-full opacity-30 grayscale group-hover:grayscale-0 transition-all duration-500">
+<img class="w-full h-full object-cover" data-alt="A complex network diagram visualized in 3D glowing orange and gold lines on a dark black background. The nodes are sharp and geometric. It looks like a high-end technical blueprint for a neural network." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfqvw_MZASvrR6oOTyxwOFoOBJ6osgU86BKO2dDVOyWZuFJJ6GuH6xl-mnZLDto8tsAcNSBHDL-79IqTcIA4HS8Oy3WtyWo7gV5toUudaMZos560Iq-1Drsz53dlRkvuEHbsjCmWffgi5tKHsptyjBiJ0nuiZMLk8_c2e6-ezMnzkZN6Ubd070xbzfH7riuOKih6fp0YUj_fH5gBnpSSdfqH_8N6mMn_WPKB3LBelQzM3-zP6ISpYKp_MnmOw6Mo_IAH9UKfdsMa0"/>
+</div>
+<div class="relative z-10 w-1/2">
+<h4 class="text-2xl font-bold mb-4">Adaptive Learning</h4>
+<p class="text-on-surface-variant text-sm">The system learns new defect categories in as few as 10 sample images, reducing commissioning time from weeks to hours.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Bottom Navigation (Mobile Only) -->
+<nav class="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] z-50 bg-surface-container-low/80 backdrop-blur-[20px] rounded-full border border-primary/20 shadow-[0px_24px_48px_rgba(0,0,0,0.5)] h-16 flex justify-around items-center px-6">
+<div class="flex flex-col items-center justify-center text-on-surface-variant/60 px-6 py-2 transition-all hover:text-primary-fixed">
+<span class="material-symbols-outlined" data-icon="photo_camera">photo_camera</span>
+<span class="font-label-sm text-label-sm">Camera</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant/60 px-6 py-2 transition-all hover:text-primary-fixed">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span class="font-label-sm text-label-sm">History</span>
+</div>
+<div class="flex flex-col items-center justify-center text-primary-fixed-dim bg-primary-container/20 rounded-full px-6 py-2 shadow-[0_0_15px_rgba(251,186,100,0.3)] scale-90 duration-200 ease-out">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-sm text-label-sm font-bold">Dashboard</span>
+</div>
+</nav>
+<!-- Footer -->
+<footer class="bg-surface py-xl border-t border-white/5">
+<div class="container mx-auto px-6 md:px-margin-desktop">
+<div class="flex flex-col md:flex-row justify-between items-start gap-12">
+<div>
+<span class="font-display-mono text-primary tracking-widest uppercase mb-6 block">NIKA AI</span>
+<p class="text-on-surface-variant/60 text-sm max-w-xs">Engineered for the future of intelligent manufacturing. Precision, security, and velocity at the core of every frame.</p>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-12">
+<div class="flex flex-col gap-4">
+<span class="font-display-mono text-[10px] text-primary-fixed-dim uppercase tracking-widest">Navigation</span>
+<a class="text-sm hover:text-primary transition-colors" href="#">Platform</a>
+<a class="text-sm hover:text-primary transition-colors" href="#">Case Studies</a>
+<a class="text-sm hover:text-primary transition-colors" href="#">Pricing</a>
+</div>
+<div class="flex flex-col gap-4">
+<span class="font-display-mono text-[10px] text-primary-fixed-dim uppercase tracking-widest">Connect</span>
+<a class="text-sm hover:text-primary transition-colors" href="#">LinkedIn</a>
+<a class="text-sm hover:text-primary transition-colors" href="#">Twitter</a>
+<a class="text-sm hover:text-primary transition-colors" href="#">GitHub</a>
+</div>
+<div class="flex flex-col gap-4">
+<span class="font-display-mono text-[10px] text-primary-fixed-dim uppercase tracking-widest">Legal</span>
+<a class="text-sm hover:text-primary transition-colors" href="#">Privacy</a>
+<a class="text-sm hover:text-primary transition-colors" href="#">Compliance</a>
+</div>
+</div>
+</div>
+<div class="mt-xl pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
+<span class="text-[10px] font-display-mono text-on-surface-variant/40">© 2024 NIKA INTELLIGENCE SYSTEMS INC.</span>
+<span class="text-[10px] font-display-mono text-on-surface-variant/40">BUILD VERSION 2.4.0-STABLE</span>
+</div>
+</div>
+</footer>
+<script>
+        // Magnetic Button Effect
+        const button = document.getElementById('cta-button');
+        
+        button.addEventListener('mousemove', (e) => {
+            const rect = button.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            
+            const deltaX = (x - centerX) / 5;
+            const deltaY = (y - centerY) / 5;
+            
+            button.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+        });
+        
+        button.addEventListener('mouseleave', () => {
+            button.style.transform = `translate(0, 0)`;
+        });
+
+        // Intersection Observer for scroll animations
+        const observerOptions = {
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('fade-in-up');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('section > div').forEach(el => {
+            el.style.opacity = '0';
+            observer.observe(el);
+        });
+    </script>
+</body></html>

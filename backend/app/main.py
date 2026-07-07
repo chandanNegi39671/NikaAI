@@ -65,6 +65,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
 
     try:
+        from app.core.db_init import init_db
+        init_db()
+    except Exception as exc:
+        logger.error(
+            "Failed to initialize database during startup.",
+            extra={"error": str(exc), "type": type(exc).__name__},
+        )
+
+    try:
         prediction_service.load_model()
         prediction_service.warmup()
         logger.info(
@@ -126,6 +135,14 @@ def create_app() -> FastAPI:
     # Sub-routers declare their own full paths (e.g. /api/v1/health) so
     # no additional prefix is added here.
     app.include_router(router)
+
+    # ── Static Files ──────────────────────────────────────────────────────────
+    from fastapi.staticfiles import StaticFiles
+    from pathlib import Path
+    static_dir = Path(__file__).resolve().parent.parent / "static"
+    static_dir.mkdir(parents=True, exist_ok=True)
+    (static_dir / "uploads").mkdir(parents=True, exist_ok=True)
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
     return app
 

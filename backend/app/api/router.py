@@ -23,6 +23,11 @@ from fastapi import APIRouter
 
 from app.api.endpoints.health import router as health_router
 from app.api.endpoints.prediction import router as prediction_router
+from app.api.endpoints.inspections import router as inspections_router
+from app.api.endpoints.analytics import router as analytics_router
+from app.api.endpoints.factory_memory import router as factory_memory_router
+from app.api.endpoints.machines import router as machines_router
+from app.api.endpoints.workers import router as workers_router
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Versioned root router
@@ -35,6 +40,10 @@ router = APIRouter()
 
 # Register sub-routers — order determines Swagger UI display order.
 # NOTE: Each sub-router declares its own full /api/v1/<path> prefix.
-# main.py calls app.include_router(router) with NO additional prefix.
 router.include_router(health_router)
 router.include_router(prediction_router)
+router.include_router(inspections_router)
+router.include_router(analytics_router)
+router.include_router(factory_memory_router)
+router.include_router(machines_router)
+router.include_router(workers_router)

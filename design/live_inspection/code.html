@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NIKA AI | Live Inspection</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Geist:wght@400;500;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(1000%); }
+        }
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+        .scan-effect {
+            background: linear-gradient(to bottom, transparent, rgba(251, 186, 100, 0.1), transparent);
+            height: 10%;
+            width: 100%;
+            position: absolute;
+            animation: scanline 4s linear infinite;
+        }
+        .rim-light {
+            border: 1px solid rgba(251, 186, 100, 0.3);
+            box-shadow: inset 0 0 10px rgba(251, 186, 100, 0.1);
+        }
+        .glass-panel {
+            background: rgba(32, 39, 51, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .magnetic-btn:active {
+            transform: scale(0.95);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#fbba64",
+                        "tertiary-container": "#5c9ccd",
+                        "surface-dim": "#17130d",
+                        "on-secondary-fixed-variant": "#7b2f00",
+                        "on-primary-fixed-variant": "#643f00",
+                        "on-secondary": "#571f00",
+                        "tertiary": "#90cdff",
+                        "inverse-primary": "#845400",
+                        "surface": "#17130d",
+                        "on-primary-fixed": "#2a1800",
+                        "on-tertiary-fixed": "#001e30",
+                        "error": "#ffb4ab",
+                        "on-surface": "#ece0d6",
+                        "on-primary-container": "#442900",
+                        "surface-variant": "#3a342d",
+                        "primary-fixed": "#ffddb6",
+                        "on-secondary-fixed": "#351000",
+                        "primary-container": "#c58b3a",
+                        "surface-tint": "#fbba64",
+                        "inverse-on-surface": "#362f29",
+                        "inverse-surface": "#ece0d6",
+                        "on-tertiary-fixed-variant": "#004b72",
+                        "error-container": "#93000a",
+                        "surface-container-lowest": "#120d08",
+                        "on-surface-variant": "#d5c4b2",
+                        "surface-container-high": "#2f2923",
+                        "outline-variant": "#514537",
+                        "on-secondary-container": "#571f00",
+                        "secondary-container": "#ff6a00",
+                        "surface-bright": "#3f3831",
+                        "on-tertiary-container": "#00324d",
+                        "on-background": "#ece0d6",
+                        "surface-container-low": "#201b15",
+                        "outline": "#9d8e7e",
+                        "on-error-container": "#ffdad6",
+                        "on-error": "#690005",
+                        "surface-container-highest": "#3a342d",
+                        "secondary-fixed-dim": "#ffb694",
+                        "surface-container": "#241f19",
+                        "on-tertiary": "#003350",
+                        "on-primary": "#462a00",
+                        "secondary-fixed": "#ffdbcc",
+                        "background": "#17130d",
+                        "tertiary-fixed": "#cbe6ff",
+                        "secondary": "#ffb694",
+                        "primary": "#fbba64",
+                        "tertiary-fixed-dim": "#90cdff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "sm": "12px",
+                        "md": "24px",
+                        "base": "8px",
+                        "gutter": "24px",
+                        "xl": "80px",
+                        "margin-mobile": "20px",
+                        "margin-desktop": "64px",
+                        "lg": "48px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "label-sm": ["Geist"],
+                        "display-mono": ["Geist"],
+                        "headline-lg-mobile": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-xl": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-sm": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                        "display-mono": ["14px", {"lineHeight": "1.5", "letterSpacing": "0.1em", "fontWeight": "500"}],
+                        "headline-lg-mobile": ["28px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-xl": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body-md overflow-hidden selection:bg-primary-container selection:text-white">
+<!-- CAMERA CANVAS LAYER -->
+<div class="fixed inset-0 z-0 bg-black overflow-hidden">
+<div class="absolute inset-0 opacity-80" data-alt="A cinematic, high-resolution close-up shot of an industrial circuit board being inspected by an automated lens. The lighting is dramatic and technical, with deep shadows and cool blue-toned metallic surfaces of the factory environment. Shallow depth of field focuses on the intricate microchips and copper pathways, reflecting the high-precision world of NIKA AI's industrial luxury aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDuuw9aiZtTxqiedsNyG2f5Sqg9wJP9MuGFYPaRFaW1LyLFVm6WerOGKUVrc292zMdAnjQmhWMy45L8NJw28gbmkRALg91ket4XIIVMQHuiz6UqKpnDjRHPMohQAki4WIY_n0EqJ-1FRRpljlB-irw_RtwzxmwwXhBLaMI-6IL3mwGwYtD6dRZpVvSvzTQgY5W9lHXnELiAEdJsFETOKfni3dsX0f1oaeN0iPGSCZzGqqzx-V5fSoNWEaL7wHuDQu596n94Z8G5cro')"></div>
+<div class="scan-effect"></div>
+<!-- Bounding Boxes Overlay -->
+<div class="absolute inset-0 pointer-events-none p-10">
+<!-- Green Pass Box -->
+<div class="absolute top-[15%] left-[20%] w-48 h-48 border-2 border-primary rounded-lg flex flex-col justify-start items-start animate-pulse">
+<div class="bg-primary text-on-primary-container px-2 py-1 font-display-mono text-[10px] uppercase">Component_01: Pass</div>
+<div class="flex-1"></div>
+<div class="w-4 h-4 border-b-2 border-l-2 border-primary absolute bottom-0 left-0"></div>
+<div class="w-4 h-4 border-b-2 border-r-2 border-primary absolute bottom-0 right-0"></div>
+</div>
+<!-- Red Fail Box -->
+<div class="absolute top-[40%] right-[25%] w-32 h-32 border-2 border-error rounded-lg flex flex-col justify-start items-end">
+<div class="bg-error text-on-error px-2 py-1 font-display-mono text-[10px] uppercase">Defect_Surface_Crack</div>
+<div class="flex-1 w-full flex items-center justify-center">
+<span class="material-symbols-outlined text-error text-4xl">warning</span>
+</div>
+</div>
+</div>
+</div>
+<!-- TOP BAR (JSON Defined Structure) -->
+<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl border-b border-primary/30 flex justify-between items-center px-margin-mobile h-16 shadow-[0px_24px_48px_rgba(0,0,0,0.5)]">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full border border-primary/40 p-0.5 overflow-hidden">
+<img class="w-full h-full object-cover rounded-full" data-alt="A professional headshot of a technical worker in a sleek, dark-toned industrial uniform. The lighting is high-contrast, featuring subtle rim lighting that emphasizes the engineering precision of the environment. The background is a blurred high-tech lab with glowing amber status lights consistent with the NIKA AI color palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhL5xZlsG3fxkxiM8X5GSRu9mRc3492irGPnBlWbzJDx2GOSIDh_EJs5QmB1mgS3TVNjOOlicDSD8qKBSiRldlGzxhyOi-0qGjKf7k25yi_6-oMr-8H5IOPNatUthkM-MLizKnd8qYw3KNB-5FzaRaJlMnn6B4X-wqP_rpWFuwNtn-3ke_cISj5c9xEouAyjd-PN541PeYP2fs7GlzDt5vaZBWwE8kQ3bUrTJftIjXUlf3-Ps5ksmE-1OEnxEzfKhTXe69y8LE2-4"/>
+</div>
+<h1 class="font-display-mono text-display-mono tracking-widest text-primary-fixed-dim">NIKA AI</h1>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full border border-primary/20">
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(251,186,100,0.8)]"></div>
+<span class="font-label-sm text-label-sm text-primary uppercase">Live Feed</span>
+</div>
+<button class="text-on-surface-variant hover:text-primary transition-colors duration-300">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</header>
+<!-- SIDE TABS (Fixed Left) -->
+<div class="fixed left-6 top-1/2 -translate-y-1/2 flex flex-col gap-4 z-40">
+<button class="glass-panel rim-light w-14 h-14 rounded-xl flex flex-col items-center justify-center hover:scale-110 transition-all duration-300 group">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">smart_toy</span>
+<span class="text-[8px] font-display-mono text-primary mt-1 uppercase">Copilot</span>
+</button>
+<button class="glass-panel border border-white/5 w-14 h-14 rounded-xl flex flex-col items-center justify-center hover:scale-110 transition-all duration-300 group">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">database</span>
+<span class="text-[8px] font-display-mono text-on-surface-variant mt-1 uppercase">Memory</span>
+</button>
+</div>
+<!-- MAIN STATUS BADGE (Top Center) -->
+<div class="fixed top-24 left-1/2 -translate-x-1/2 z-30">
+<div class="glass-panel rim-light px-8 py-3 rounded-full flex items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-1000">
+<div class="flex flex-col items-center border-r border-white/10 pr-4">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase opacity-60">Status</span>
+<span class="font-headline-lg-mobile text-headline-lg-mobile text-error">FAIL</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase opacity-60">Session ID</span>
+<span class="font-display-mono text-display-mono text-primary-fixed-dim">#NK-7892-XP</span>
+</div>
+</div>
+</div>
+<!-- FOOTER PANEL & CAPTURE -->
+<div class="fixed bottom-0 left-0 right-0 z-50 p-margin-mobile flex flex-col items-center pointer-events-none">
+<!-- Capture Button Group -->
+<div class="mb-10 pointer-events-auto flex items-center gap-12">
+<button class="w-12 h-12 rounded-full glass-panel border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all">
+<span class="material-symbols-outlined text-on-surface">close</span>
+</button>
+<!-- Main Capture Trigger -->
+<div class="relative group">
+<div class="absolute inset-0 bg-primary/20 rounded-full blur-xl group-hover:bg-primary/40 transition-all duration-500"></div>
+<button class="relative w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary p-[2px] shadow-2xl active:scale-90 transition-transform duration-200">
+<div class="w-full h-full rounded-full bg-surface-dim flex items-center justify-center border border-white/20">
+<div class="w-14 h-14 rounded-full bg-gradient-to-t from-primary/80 to-secondary flex items-center justify-center shadow-inner">
+<span class="material-symbols-outlined text-on-primary-fixed text-4xl" style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+</div>
+</div>
+</button>
+<!-- Rotating Ring Element -->
+<div class="absolute -inset-2 border-2 border-dashed border-primary/30 rounded-full animate-[spin_10s_linear_infinite]"></div>
+</div>
+<button class="w-12 h-12 rounded-full glass-panel border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all">
+<span class="material-symbols-outlined text-on-surface">history</span>
+</button>
+</div>
+<!-- Glassmorphic Info Panel -->
+<div class="glass-panel rim-light w-full max-w-2xl rounded-2xl p-6 pointer-events-auto shadow-[0px_24px_48px_rgba(0,0,0,0.5)]">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+<!-- Confidence Meter -->
+<div class="flex flex-col gap-2">
+<div class="flex justify-between items-center">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Confidence</span>
+<span class="font-display-mono text-display-mono text-primary">98.4%</span>
+</div>
+<div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+<div class="h-full bg-gradient-to-r from-primary to-secondary-container w-[98.4%] relative">
+<div class="absolute right-0 top-0 bottom-0 w-1 bg-white shadow-[0_0_10px_#fff]"></div>
+</div>
+</div>
+</div>
+<!-- AI Processing Info -->
+<div class="flex justify-center border-x border-white/10 gap-8 px-4">
+<div class="text-center">
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase opacity-60">Latency</p>
+<p class="font-display-mono text-display-mono text-on-surface">32ms</p>
+</div>
+<div class="text-center">
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase opacity-60">FPS</p>
+<p class="font-display-mono text-display-mono text-on-surface">60</p>
+</div>
+</div>
+<!-- Action / Mode -->
+<div class="flex flex-col gap-1 text-right">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase opacity-60">Active Profile</span>
+<div class="flex items-center justify-end gap-2">
+<span class="material-symbols-outlined text-primary text-sm">precision_manufacturing</span>
+<span class="font-display-mono text-display-mono text-primary-fixed-dim">Industrial_Standard_v4</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- JSON Bottom Nav (Filtered for Top-Level Consistency) -->
+<nav class="fixed bottom-6 left-0 right-0 z-50 flex justify-around items-center h-16 max-w-md mx-auto bg-surface-container-low/80 backdrop-blur-[20px] rounded-full border border-primary/20 shadow-[0px_24px_48px_rgba(0,0,0,0.5)] md:hidden">
+<a class="flex flex-col items-center justify-center text-primary-fixed-dim bg-primary-container/20 rounded-full px-6 py-2 shadow-[0_0_15px_rgba(251,186,100,0.3)] scale-90 transition-all" href="#">
+<span class="material-symbols-outlined">photo_camera</span>
+<span class="font-label-sm text-label-sm mt-0.5">Camera</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 px-6 py-2 hover:text-primary-fixed transition-all" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="font-label-sm text-label-sm mt-0.5">History</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant/60 px-6 py-2 hover:text-primary-fixed transition-all" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-sm text-label-sm mt-0.5">Dashboard</span>
+</a>
+</nav>
+<script>
+        // Subtle magnetic effect for the capture button
+        const captureBtn = document.querySelector('.relative.group');
+        document.addEventListener('mousemove', (e) => {
+            if (!captureBtn) return;
+            const rect = captureBtn.getBoundingClientRect();
+            const x = e.clientX - rect.left - rect.width / 2;
+            const y = e.clientY - rect.top - rect.height / 2;
+            
+            const distance = Math.sqrt(x*x + y*y);
+            if (distance < 150) {
+                captureBtn.style.transform = `translate(${x * 0.15}px, ${y * 0.15}px)`;
+            } else {
+                captureBtn.style.transform = `translate(0, 0)`;
+            }
+        });
+
+        // Toggle state for interaction simulation
+        let isCapturing = false;
+        const mainBtn = document.querySelector('button.relative');
+        mainBtn.addEventListener('click', () => {
+            isCapturing = true;
+            mainBtn.style.transform = 'scale(0.8)';
+            setTimeout(() => {
+                mainBtn.style.transform = 'scale(1)';
+                isCapturing = false;
+            }, 200);
+        });
+    </script>
+</body></html>

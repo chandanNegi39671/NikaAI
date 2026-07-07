@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NIKA AI | Live Inspection</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Geist:wght@400;500;600&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(1000%); }
+        }
+        @keyframes pulse-gentle {
+            0%, 100% { opacity: 0.9; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.02); filter: drop-shadow(0 0 15px rgba(255, 180, 171, 0.4)); }
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            100% { transform: translateX(200%) rotate(45deg); }
+        }
+        @keyframes circular-scan {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes scan-rotate-3d {
+            0% { transform: perspective(1000px) rotateX(60deg) rotateZ(0deg); }
+            100% { transform: perspective(1000px) rotateX(60deg) rotateZ(360deg); }
+        }
+        .scan-effect {
+            background: linear-gradient(to bottom, transparent, rgba(251, 186, 100, 0.15), transparent);
+            height: 15%;
+            width: 100%;
+            position: absolute;
+            animation: scanline 5s linear infinite;
+            z-index: 5;
+        }
+        .rim-light {
+            border: 1px solid rgba(251, 186, 100, 0.25);
+            box-shadow: inset 0 0 15px rgba(251, 186, 100, 0.05), 0 0 20px rgba(0,0,0,0.4);
+        }
+        .glass-panel {
+            background: rgba(23, 19, 13, 0.75);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .status-pulse-fail {
+            animation: pulse-gentle 4s ease-in-out infinite;
+            color: #ffb4ab;
+        }
+        .shimmer-effect::after {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                to right,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.2) 50%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            animation: shimmer 4s infinite;
+        }
+        .tilt-card {
+            transition: transform 0.4s cubic-bezier(0.2, 0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+        .ai-scanner-ring {
+            position: absolute;
+            width: 160%;
+            height: 160%;
+            top: -30%;
+            left: -30%;
+            border: 1px solid rgba(255, 180, 171, 0.3);
+            border-radius: 50%;
+            animation: scan-rotate-3d 4s linear infinite;
+            pointer-events: none;
+        }
+        .ai-scanner-ring::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border: 2px solid transparent;
+            border-top-color: #ffb4ab;
+            border-radius: 50%;
+        }
+        .copper-glow {
+            background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(251, 186, 100, 0.15) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed-dim": "#fbba64",
+                        "tertiary-container": "#5c9ccd",
+                        "surface-dim": "#17130d",
+                        "on-secondary-fixed-variant": "#7b2f00",
+                        "on-primary-fixed-variant": "#643f00",
+                        "on-secondary": "#571f00",
+                        "tertiary": "#90cdff",
+                        "inverse-primary": "#845400",
+                        "surface": "#17130d",
+                        "on-primary-fixed": "#2a1800",
+                        "on-tertiary-fixed": "#001e30",
+                        "error": "#ffb4ab",
+                        "on-surface": "#ece0d6",
+                        "on-primary-container": "#442900",
+                        "surface-variant": "#3a342d",
+                        "primary-fixed": "#ffddb6",
+                        "on-secondary-fixed": "#351000",
+                        "primary-container": "#c58b3a",
+                        "surface-tint": "#fbba64",
+                        "inverse-on-surface": "#362f29",
+                        "inverse-surface": "#ece0d6",
+                        "on-tertiary-fixed-variant": "#004b72",
+                        "error-container": "#93000a",
+                        "surface-container-lowest": "#120d08",
+                        "on-surface-variant": "#d5c4b2",
+                        "surface-container-high": "#2f2923",
+                        "outline-variant": "#514537",
+                        "on-secondary-container": "#571f00",
+                        "secondary-container": "#ff6a00",
+                        "surface-bright": "#3f3831",
+                        "on-tertiary-container": "#00324d",
+                        "on-background": "#ece0d6",
+                        "surface-container-low": "#201b15",
+                        "outline": "#9d8e7e",
+                        "on-error-container": "#ffdad6",
+                        "on-error": "#690005",
+                        "surface-container-highest": "#3a342d",
+                        "secondary-fixed-dim": "#ffb694",
+                        "surface-container": "#241f19",
+                        "on-tertiary": "#003350",
+                        "on-primary": "#462a00",
+                        "secondary-fixed": "#ffdbcc",
+                        "background": "#17130d",
+                        "tertiary-fixed": "#cbe6ff",
+                        "secondary": "#ffb694",
+                        "primary": "#fbba64",
+                        "tertiary-fixed-dim": "#90cdff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "sm": "12px",
+                        "md": "24px",
+                        "base": "8px",
+                        "gutter": "24px",
+                        "xl": "80px",
+                        "margin-mobile": "20px",
+                        "margin-desktop": "64px",
+                        "lg": "48px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "label-sm": ["Geist"],
+                        "display-mono": ["Geist"],
+                        "headline-lg-mobile": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-xl": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-sm": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.02em", "fontWeight": "600"}],
+                        "display-mono": ["14px", {"lineHeight": "1.5", "letterSpacing": "0.1em", "fontWeight": "500"}],
+                        "headline-lg-mobile": ["28px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-xl": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body-md h-screen overflow-hidden selection:bg-primary-container selection:text-white">
+<!-- BACKGROUND DEPTH LAYER -->
+<div class="fixed inset-0 z-0 bg-black overflow-hidden scale-110">
+<div class="absolute inset-0 opacity-70 blur-[1px] transition-transform duration-700 ease-out" id="parallax-bg" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDuuw9aiZtTxqiedsNyG2f5Sqg9wJP9MuGFYPaRFaW1LyLFVm6WerOGKUVrc292zMdAnjQmhWMy45L8NJw28gbmkRALg91ket4XIIVMQHuiz6UqKpnDjRHPMohQAki4WIY_n0EqJ-1FRRpljlB-irw_RtwzxmwwXhBLaMI-6IL3mwGwYtD6dRZpVvSvzTQgY5W9lHXnELiAEdJsFETOKfni3dsX0f1oaeN0iPGSCZzGqqzx-V5fSoNWEaL7wHuDQu596n94Z8G5cro'); background-size: cover; background-position: center;"></div>
+<div class="scan-effect"></div>
+<div class="copper-glow absolute inset-0"></div>
+<!-- Bounding Boxes Overlay -->
+<div class="absolute inset-0 pointer-events-none p-10 flex items-center justify-center">
+<!-- Red Fail Box with Rotating AI Scanner -->
+<div class="relative w-64 h-64 border border-error/50 rounded-xl flex flex-col justify-start items-center">
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-error text-on-error px-3 py-1 font-display-mono text-[10px] uppercase tracking-wider rounded-t-sm shadow-lg z-20 whitespace-nowrap">
+                    DEFECT_SURFACE_CRACK
+                </div>
+<!-- Rotating AI Scanner Ring -->
+<div class="ai-scanner-ring"></div>
+<div class="flex-1 w-full flex items-center justify-center relative">
+<span class="material-symbols-outlined text-error text-6xl opacity-80 status-pulse-fail">warning</span>
+<!-- Corner Marks -->
+<div class="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-error/60"></div>
+<div class="absolute top-2 right-2 w-3 h-3 border-t-2 border-r-2 border-error/60"></div>
+<div class="absolute bottom-2 left-2 w-3 h-3 border-b-2 border-l-2 border-error/60"></div>
+<div class="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-error/60"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- TOP BAR -->
+<header class="fixed top-0 w-full z-50 glass-panel border-b border-primary/20 flex justify-between items-center px-margin-mobile h-16 shadow-2xl">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full border border-primary/40 p-0.5 overflow-hidden ring-1 ring-primary/20">
+<img alt="Inspector Profile" class="w-full h-full object-cover rounded-full" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhL5xZlsG3fxkxiM8X5GSRu9mRc3492irGPnBlWbzJDx2GOSIDh_EJs5QmB1mgS3TVNjOOlicDSD8qKBSiRldlGzxhyOi-0qGjKf7k25yi_6-oMr-8H5IOPNatUthkM-MLizKnd8qYw3KNB-5FzaRaJlMnn6B4X-wqP_rpWFuwNtn-3ke_cISj5c9xEouAyjd-PN541PeYP2fs7GlzDt5vaZBWwE8kQ3bUrTJftIjXUlf3-Ps5ksmE-1OEnxEzfKhTXe69y8LE2-4"/>
+</div>
+<h1 class="font-display-mono text-display-mono tracking-widest text-primary-fixed-dim font-bold">NIKA AI</h1>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full border border-primary/20">
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_#fbba64]"></div>
+<span class="font-label-sm text-[10px] text-primary uppercase tracking-widest">Live Feed</span>
+</div>
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</header>
+<!-- SIDE TABS -->
+<div class="fixed left-6 top-1/2 -translate-y-1/2 flex flex-col gap-6 z-40">
+<button class="tilt-card glass-panel rim-light w-14 h-14 rounded-xl flex flex-col items-center justify-center transition-all group active:scale-95">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">smart_toy</span>
+<span class="text-[8px] font-display-mono text-primary mt-1 uppercase">Copilot</span>
+</button>
+<button class="tilt-card glass-panel rim-light w-14 h-14 rounded-xl flex flex-col items-center justify-center transition-all group active:scale-95">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">database</span>
+<span class="text-[8px] font-display-mono text-on-surface-variant mt-1 uppercase">Memory</span>
+</button>
+</div>
+<!-- MAIN STATUS BADGE -->
+<div class="fixed top-24 left-1/2 -translate-x-1/2 z-30">
+<div class="glass-panel rim-light px-10 py-4 rounded-2xl flex items-center gap-6 animate-in fade-in slide-in-from-top-6 duration-1000">
+<div class="flex flex-col items-center border-r border-white/10 pr-6">
+<span class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-widest opacity-60 mb-1">Status</span>
+<span class="font-headline-lg-mobile text-3xl status-pulse-fail font-bold">FAIL</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-widest opacity-60 mb-1">Session ID</span>
+<span class="font-display-mono text-display-mono text-primary-fixed-dim">#NK-7892-XP</span>
+</div>
+</div>
+</div>
+<!-- FOOTER PANEL & CAPTURE -->
+<div class="fixed bottom-0 left-0 right-0 z-50 p-margin-mobile flex flex-col items-center pointer-events-none">
+<!-- Capture Button Group -->
+<div class="mb-8 pointer-events-auto flex items-center gap-10">
+<button class="w-12 h-12 rounded-full glass-panel rim-light flex items-center justify-center hover:bg-white/5 transition-all">
+<span class="material-symbols-outlined text-on-surface/70">close</span>
+</button>
+<div class="relative group">
+<div class="absolute inset-0 bg-primary/25 rounded-full blur-2xl group-hover:bg-primary/40 transition-all duration-700"></div>
+<button class="relative w-20 h-20 rounded-full bg-gradient-to-br from-primary via-primary to-secondary p-[2px] shadow-2xl active:scale-90 transition-transform duration-200">
+<div class="w-full h-full rounded-full bg-surface-dim flex items-center justify-center border border-white/20 relative overflow-hidden">
+<div class="shimmer-effect absolute inset-0 pointer-events-none"></div>
+<div class="w-14 h-14 rounded-full bg-gradient-to-t from-primary/90 to-secondary flex items-center justify-center shadow-inner relative z-10">
+<span class="material-symbols-outlined text-on-primary-fixed text-4xl" style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+</div>
+</div>
+</button>
+<div class="absolute -inset-3 border border-dashed border-primary/40 rounded-full animate-[spin_15s_linear_infinite]"></div>
+</div>
+<button class="w-12 h-12 rounded-full glass-panel rim-light flex items-center justify-center hover:bg-white/5 transition-all">
+<span class="material-symbols-outlined text-on-surface/70">history</span>
+</button>
+</div>
+<!-- Glassmorphic Info Panel -->
+<div class="glass-panel rim-light w-full max-w-2xl rounded-3xl p-6 pointer-events-auto shadow-[0px_32px_64px_rgba(0,0,0,0.6)] border-t border-white/20">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+<!-- Confidence Meter -->
+<div class="flex flex-col gap-3">
+<div class="flex justify-between items-center">
+<span class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-widest font-semibold">AI Confidence</span>
+<span class="font-display-mono text-display-mono text-primary animate-count" data-suffix="%" data-target="98.4">0.0%</span>
+</div>
+<div class="h-2 w-full bg-white/5 rounded-full overflow-hidden p-[1px]">
+<div class="h-full bg-gradient-to-r from-primary via-primary to-secondary w-0 transition-all duration-[2000ms] ease-out relative" id="confidence-bar">
+<div class="absolute right-0 top-0 bottom-0 w-2 bg-white/40 blur-[2px]"></div>
+</div>
+</div>
+</div>
+<!-- AI Processing Info -->
+<div class="flex justify-center border-x border-white/10 gap-10 px-4">
+<div class="text-center">
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-widest opacity-60 mb-1">Latency</p>
+<p class="font-display-mono text-display-mono text-on-surface animate-count" data-suffix="ms" data-target="32">0ms</p>
+</div>
+<div class="text-center">
+<p class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-widest opacity-60 mb-1">FPS</p>
+<p class="font-display-mono text-display-mono text-on-surface animate-count" data-target="60">0</p>
+</div>
+</div>
+<!-- Action / Mode -->
+<div class="flex flex-col gap-1 text-right">
+<span class="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-widest opacity-60 mb-1">Active Profile</span>
+<div class="flex items-center justify-end gap-2 group cursor-pointer">
+<span class="material-symbols-outlined text-primary text-sm group-hover:rotate-45 transition-transform">precision_manufacturing</span>
+<span class="font-display-mono text-display-mono text-primary-fixed-dim border-b border-primary/30">Industrial_v4_Plus</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Mobile Nav -->
+<nav class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex justify-between items-center h-16 w-[90%] max-w-md bg-surface-container-low/90 backdrop-blur-3xl rounded-full border border-white/10 shadow-2xl md:hidden px-2">
+<a class="flex flex-col items-center justify-center text-primary-fixed-dim bg-primary/10 rounded-full px-6 py-2 shadow-inner ring-1 ring-primary/20 transition-all" href="#">
+<span class="material-symbols-outlined">photo_camera</span>
+<span class="font-label-sm text-[10px] mt-0.5 uppercase tracking-tighter">Camera</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant/70 px-6 py-2 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="font-label-sm text-[10px] mt-0.5 uppercase tracking-tighter">History</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant/70 px-6 py-2 hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-sm text-[10px] mt-0.5 uppercase tracking-tighter">Board</span>
+</a>
+</nav>
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Animated Counters
+            const counters = document.querySelectorAll('.animate-count');
+            counters.forEach(counter => {
+                const target = parseFloat(counter.getAttribute('data-target'));
+                const suffix = counter.getAttribute('data-suffix') || '';
+                let count = 0;
+                const duration = 2000;
+                const increment = target / (duration / 16);
+
+                const updateCount = () => {
+                    count += increment;
+                    if (count < target) {
+                        counter.innerText = (target % 1 === 0 ? Math.floor(count) : count.toFixed(1)) + suffix;
+                        requestAnimationFrame(updateCount);
+                    } else {
+                        counter.innerText = target + suffix;
+                    }
+                };
+                updateCount();
+            });
+
+            // Trigger confidence bar animation
+            setTimeout(() => {
+                const bar = document.getElementById('confidence-bar');
+                if(bar) bar.style.width = '98.4%';
+            }, 300);
+
+            // Spotlight / Copper Glow Interaction
+            const copperGlow = document.querySelector('.copper-glow');
+            const parallaxBg = document.getElementById('parallax-bg');
+            
+            document.addEventListener('mousemove', (e) => {
+                const x = (e.clientX / window.innerWidth) * 100;
+                const y = (e.clientY / window.innerHeight) * 100;
+                
+                if (copperGlow) {
+                    copperGlow.style.setProperty('--mouse-x', `${x}%`);
+                    copperGlow.style.setProperty('--mouse-y', `${y}%`);
+                }
+
+                // Subtle background parallax depth effect
+                if (parallaxBg) {
+                    const moveX = (e.clientX - window.innerWidth / 2) * 0.01;
+                    const moveY = (e.clientY - window.innerHeight / 2) * 0.01;
+                    parallaxBg.style.transform = `translate(${moveX}px, ${moveY}px) scale(1.1)`;
+                }
+            });
+
+            // Tilt card interaction
+            const tiltCards = document.querySelectorAll('.tilt-card');
+            tiltCards.forEach(card => {
+                card.addEventListener('mousemove', (e) => {
+                    const rect = card.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const centerX = rect.width / 2;
+                    const centerY = rect.height / 2;
+                    const rotateX = (y - centerY) / 4;
+                    const rotateY = (centerX - x) / 4;
+                    card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.05)`;
+                });
+                card.addEventListener('mouseleave', () => {
+                    card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale(1)`;
+                });
+            });
+        });
+
+        // Capture button click effect
+        const mainBtn = document.querySelector('button.relative');
+        if(mainBtn) {
+            mainBtn.addEventListener('click', () => {
+                mainBtn.style.transform = 'scale(0.85)';
+                setTimeout(() => {
+                    mainBtn.style.transform = 'scale(1)';
+                }, 150);
+            });
+        }
+    </script>
+</body></html>
