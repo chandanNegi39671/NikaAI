@@ -444,3 +444,49 @@ class ConversationMessage(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<ConversationMessage role={self.role} conv={self.conversation_id}>"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sprint 7: Notification — omnichannel alert dispatch and acknowledgement
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Notification(Base, SoftDeleteMixin, TimestampMixin):
+    """Persisted record of a single notification dispatch attempt.
+
+    One row per (event, channel) pair — a single alert broadcast to
+    email + Slack + Teams produces three rows, each independently
+    tracked for delivery status, retries, and acknowledgement. This is
+    what makes "history" and "acknowledgement" real features instead of
+    log lines that vanish on container restart.
+    """
+    __tablename__ = "notifications"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
+
+    # What triggered this notification
+    event_type = Column(String(50), nullable=False, index=True)   # e.g. "critical_defect", "machine_offline"
+    priority = Column(String(20), nullable=False, default="normal", index=True)  # low | normal | high | critical
+    title = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    machine_id = Column(String(36), ForeignKey("machines.id"), nullable=True, index=True)
+    metadata_json = Column(Text, nullable=True)  # arbitrary structured context, JSON-encoded
+
+    # Delivery
+    channel = Column(String(20), nullable=False, index=True)  # email | slack | teams | discord | sms | webhook
+    recipient = Column(String(255), nullable=True)  # address / channel id / phone number, channel-dependent
+    status = Column(String(20), nullable=False, default="pending", index=True)  # pending | sent | failed
+    attempts = Column(Integer, default=0, nullable=False)
+    last_error = Column(Text, nullable=True)
+    sent_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Escalation / acknowledgement
+    requires_ack = Column(Boolean, default=False, nullable=False)
+    acknowledged_at = Column(DateTime(timezone=True), nullable=True)
+    acknowledged_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    escalated_at = Column(DateTime(timezone=True), nullable=True)
+
+    machine = relationship("Machine")
+    acknowledger = relationship("User", foreign_keys=[acknowledged_by])
+
+    def __repr__(self) -> str:
+        return f"<Notification channel={self.channel} status={self.status} event={self.event_type}>"

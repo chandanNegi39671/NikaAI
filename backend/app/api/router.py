@@ -27,6 +27,7 @@ from app.api.endpoints.sync import router as sync_router
 from app.api.endpoints.maintenance import router as maintenance_router
 from app.api.endpoints.inference_history import router as inference_history_router # Sprint 8 History
 from app.api.endpoints.audit_logs import router as audit_logs_router # Sprint 8 Audit Logs
+from app.api.endpoints.notifications import router as notifications_router # Sprint 7 Notifications
 
 router = APIRouter()
 
@@ -49,3 +50,4 @@ router.include_router(sync_router)
 router.include_router(maintenance_router)
 router.include_router(inference_history_router)
 router.include_router(audit_logs_router)
+router.include_router(notifications_router)

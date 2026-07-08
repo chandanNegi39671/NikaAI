@@ -65,11 +65,18 @@ def handle_prediction_finished_notifications(payload: dict):
     if status == "FAIL":
         try:
             from app.services.notifications import NotificationService
-            NotificationService.trigger_defect_alerts(
-                defect_type=payload.get("defect_type", "Unknown"),
-                confidence=payload.get("confidence", 0.0),
-                machine_name=payload.get("machine_name", "Unknown")
-            )
+            from app.core.database import SessionLocal
+            import asyncio
+            db = SessionLocal()
+            try:
+                asyncio.run(NotificationService.trigger_defect_alerts(
+                    db=db,
+                    defect_type=payload.get("defect_type", "Unknown"),
+                    confidence=payload.get("confidence", 0.0),
+                    machine_name=payload.get("machine_name", "Unknown"),
+                ))
+            finally:
+                db.close()
         except Exception as exc:
             logger.error(f"EventBus Notification handler failed: {exc}")
 

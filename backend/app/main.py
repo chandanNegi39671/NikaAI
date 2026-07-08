@@ -27,6 +27,7 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 
 from app.api import router                        # single versioned router — all routes
 from app.core.config import settings, Environment
@@ -122,8 +123,10 @@ def create_app() -> FastAPI:
             "Upload an image to receive YOLOv8 defect detections with "
             "bounding boxes and confidence scores."
         ),
-        docs_url=None if _is_production else "/api/docs",
-        redoc_url=None if _is_production else "/api/redoc",
+        # Always None — we serve docs manually below using unpkg CDN
+        # to avoid blank-page issues with the default jsdelivr CDN.
+        docs_url=None,
+        redoc_url=None,
         openapi_url=None if _is_production else "/api/openapi.json",
         lifespan=lifespan,
     )
@@ -149,6 +152,28 @@ def create_app() -> FastAPI:
     # no additional prefix is added here.
     app.include_router(router)
 
+    # ── Custom Swagger UI (unpkg CDN — avoids blank page from jsdelivr) ───────
+    # FastAPI's default Swagger loads assets from cdn.jsdelivr.net which can
+    # be blocked or slow on some networks, producing a blank white page.
+    # Serving from unpkg.com resolves this.
+    if not _is_production:
+        @app.get("/api/docs", include_in_schema=False)
+        async def custom_swagger_ui():
+            return get_swagger_ui_html(
+                openapi_url="/api/openapi.json",
+                title=f"{settings.app_name} - Swagger UI",
+                swagger_js_url="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js",
+                swagger_css_url="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css",
+            )
+
+        @app.get("/api/redoc", include_in_schema=False)
+        async def custom_redoc():
+            return get_redoc_html(
+                openapi_url="/api/openapi.json",
+                title=f"{settings.app_name} - ReDoc",
+                redoc_js_url="https://unpkg.com/redoc@latest/bundles/redoc.standalone.js",
+            )
+
     # ── Prometheus Metrics ───────────────────────────────────────────────────
     from app.core.metrics import metrics_app
     app.mount("/metrics", metrics_app)
@@ -165,26 +190,26 @@ def create_app() -> FastAPI:
     (static_dir / "uploads").mkdir(parents=True, exist_ok=True)
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-    # ── Custom OpenAPI / Swagger Documentation ──────────────────────────────
+    # ── Custom OpenAPI schema ─────────────────────────────────────────────────
     from fastapi.openapi.utils import get_openapi
-    
+
     def custom_openapi():
         if app.openapi_schema:
             return app.openapi_schema
-            
+
         openapi_schema = get_openapi(
             title=app.title,
             version=app.version,
             description=app.description,
             routes=app.routes,
         )
-        
+
         # Include detailed schema descriptions for standard enterprise HTTP errors
         if "components" not in openapi_schema:
             openapi_schema["components"] = {}
         if "schemas" not in openapi_schema["components"]:
             openapi_schema["components"]["schemas"] = {}
-            
+
         openapi_schema["components"]["schemas"]["ErrorSchema"] = {
             "title": "ErrorSchema",
             "type": "object",
@@ -196,7 +221,7 @@ def create_app() -> FastAPI:
                 }
             }
         }
-        
+
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 

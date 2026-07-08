@@ -183,7 +183,7 @@ class MaintenancePredictionRepository(BaseRepository[MaintenancePrediction]):
                 self.model.machine_id == machine_id,
                 self.model.is_deleted == False,
             )
-            .order_by(self.model.computed_at.desc())
+            .order_by(self.model.computed_at.desc(), self.model.id.desc())
             .first()
         )
 

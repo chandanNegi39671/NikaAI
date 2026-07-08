@@ -1,104 +1,307 @@
 """
 backend/app/services/notifications.py
 ──────────────────────────────────────
-Integrated omnichannel notification service (SMTP Email, Slack Webhooks, Discord, Teams, Twilio SMS).
+Multi-channel notification dispatch: email, Slack, Microsoft Teams,
+Discord, SMS (Twilio), and generic outbound webhooks.
+
+Design choices worth calling out:
+  - Every dispatch attempt is persisted as a `Notification` row *before*
+    delivery is attempted, so a crash mid-send still leaves an audit
+    trail instead of losing the event entirely.
+  - A channel with no credentials configured is skipped and recorded as
+    `status="failed"` with a clear reason — it never reports fake
+    success just because nothing was configured.
+  - Delivery is async (httpx.AsyncClient) so a slow/unreachable webhook
+    can't block the event loop or an inference request.
+  - `escalate_unacknowledged` is a separate, idempotent operation meant
+    to be called periodically (e.g. from a Celery beat task) rather than
+    inline during dispatch, since escalation is a time-based condition.
 """
 
+from __future__ import annotations
+
+import json
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
 import httpx
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+from sqlalchemy.orm import Session
+
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.models.db_models import Notification
 
 logger = get_logger(__name__)
 
+VALID_PRIORITIES = {"low", "normal", "high", "critical"}
+VALID_CHANNELS = {"email", "slack", "teams", "discord", "sms", "webhook"}
+
+
+class ChannelNotConfigured(Exception):
+    """Raised internally when a channel is requested but has no credentials."""
+
+
 class NotificationService:
-    """Dispatches notifications across multiple channels."""
-    
+    """Dispatches notifications across multiple channels and persists results."""
+
+    # ── Per-channel senders ──────────────────────────────────────────────
+    # Each returns nothing; raises on failure so the caller can record the
+    # real error message rather than a generic "failed".
+
     @staticmethod
-    def send_email(subject: str, body: str, recipient: str) -> bool:
-        """Send notification via SMTP Email."""
-        # SMTP configurations (can load from settings if configured)
-        smtp_host = "localhost"
-        smtp_port = 1025 # Mailhog / Dev SMTP
-        sender_email = "alerts@nika.ai"
-        
+    async def _send_email(subject: str, body_html: str, recipient: str) -> None:
+        if not settings.smtp_host:
+            raise ChannelNotConfigured("SMTP_HOST is not configured")
+
+        import aiosmtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
         msg = MIMEMultipart()
-        msg["From"] = sender_email
+        msg["From"] = settings.smtp_from_address
         msg["To"] = recipient
         msg["Subject"] = subject
-        msg.attach(MIMEText(body, "html"))
-        
-        try:
-            with smtplib.SMTP(smtp_host, smtp_port) as server:
-                server.sendmail(sender_email, recipient, msg.as_string())
-            logger.info(f"Email notification successfully sent to {recipient}")
-            return True
-        except Exception as exc:
-            logger.warning(f"Failed to send email notification (SMTP offline): {exc}")
-            return False
+        msg.attach(MIMEText(body_html, "html"))
+
+        await aiosmtplib.send(
+            msg,
+            hostname=settings.smtp_host,
+            port=settings.smtp_port,
+            username=settings.smtp_username,
+            password=settings.smtp_password,
+            start_tls=settings.smtp_use_tls,
+        )
 
     @staticmethod
-    def send_slack(message: str) -> bool:
-        """Send notification to Slack channel via Webhook."""
-        webhook_url = getattr(settings, "slack_webhook_url", None)
-        if not webhook_url:
-            logger.debug(f"Slack webhook not configured. Simulation payload: {message}")
-            return True
-            
-        try:
-            res = httpx.post(webhook_url, json={"text": message})
-            if res.status_code == 200:
-                logger.info("Slack webhook notification sent successfully.")
-                return True
-            logger.warning(f"Slack webhook returned status code {res.status_code}")
-            return False
-        except Exception as exc:
-            logger.error(f"Failed to send Slack webhook: {exc}")
-            return False
+    async def _send_slack(message: str) -> None:
+        if not settings.slack_webhook_url:
+            raise ChannelNotConfigured("SLACK_WEBHOOK_URL is not configured")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            res = await client.post(settings.slack_webhook_url, json={"text": message})
+            res.raise_for_status()
 
     @staticmethod
-    def send_discord(message: str) -> bool:
-        """Send notification to Discord webhook."""
-        webhook_url = getattr(settings, "discord_webhook_url", None)
-        if not webhook_url:
-            logger.debug(f"Discord webhook not configured. Simulation payload: {message}")
-            return True
-            
-        try:
-            res = httpx.post(webhook_url, json={"content": message})
-            if res.status_code == 204:
-                logger.info("Discord webhook notification sent successfully.")
-                return True
-            return False
-        except Exception as exc:
-            logger.error(f"Failed to send Discord webhook: {exc}")
-            return False
+    async def _send_teams(title: str, message: str) -> None:
+        if not settings.teams_webhook_url:
+            raise ChannelNotConfigured("TEAMS_WEBHOOK_URL is not configured")
+        # Teams incoming webhooks expect an Adaptive Card / MessageCard payload,
+        # not a plain "text" field like Slack/Discord.
+        payload = {
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "summary": title,
+            "themeColor": "D0021B",
+            "title": title,
+            "text": message,
+        }
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            res = await client.post(settings.teams_webhook_url, json=payload)
+            res.raise_for_status()
 
     @staticmethod
-    def trigger_defect_alerts(defect_type: str, confidence: float, machine_name: str) -> None:
-        """Trigger automated omnichannel alerts for critical manufacturing defects."""
-        subject = f"🚨 CRITICAL DEFECT DETECTED: {defect_type.upper()}"
-        body = f"""
-        <html>
-            <body>
-                <h2>Nika AI Alert</h2>
-                <p>A critical defect has been detected on the factory floor.</p>
-                <ul>
-                    <li><strong>Defect Type:</strong> {defect_type.replace('_', ' ').title()}</li>
-                    <li><strong>Confidence:</strong> {round(confidence * 100, 2)}%</li>
-                    <li><strong>Machine Source:</strong> {machine_name}</li>
-                </ul>
-                <p>Please review the inspection result immediately.</p>
-            </body>
-        </html>
+    async def _send_discord(message: str) -> None:
+        if not settings.discord_webhook_url:
+            raise ChannelNotConfigured("DISCORD_WEBHOOK_URL is not configured")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            res = await client.post(settings.discord_webhook_url, json={"content": message})
+            res.raise_for_status()
+
+    @staticmethod
+    async def _send_sms(message: str, to_number: str) -> None:
+        if not (settings.twilio_account_sid and settings.twilio_auth_token and settings.twilio_from_number):
+            raise ChannelNotConfigured("Twilio credentials are not fully configured")
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.twilio_account_sid}/Messages.json"
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            res = await client.post(
+                url,
+                data={"From": settings.twilio_from_number, "To": to_number, "Body": message},
+                auth=(settings.twilio_account_sid, settings.twilio_auth_token),
+            )
+            res.raise_for_status()
+
+    @staticmethod
+    async def _send_webhook(url: str, payload: dict[str, Any]) -> None:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            res = await client.post(url, json=payload)
+            res.raise_for_status()
+
+    # ── Orchestration ────────────────────────────────────────────────────
+
+    @staticmethod
+    async def dispatch(
+        db: Session,
+        *,
+        event_type: str,
+        title: str,
+        message: str,
+        channels: list[str],
+        priority: str = "normal",
+        machine_id: str | None = None,
+        recipients: dict[str, str] | None = None,
+        webhook_url: str | None = None,
+        requires_ack: bool = False,
+        metadata: dict[str, Any] | None = None,
+    ) -> list[Notification]:
+        """Persist and attempt delivery of one notification across N channels.
+
+        `recipients` maps channel -> address, e.g. {"email": "sup@nika.ai", "sms": "+1..."}.
+        Returns the list of persisted Notification rows (one per channel),
+        each reflecting its real delivery outcome.
         """
-        
-        # Broadcast email to supervisors
-        NotificationService.send_email(subject, body, "supervisor@nika.ai")
-        
-        # Broadcast to chat tools
-        chat_msg = f"🚨 *Critical Defect Alert* | Machine: *{machine_name}* | Defect: *{defect_type}* ({round(confidence*100,2)}%)"
-        NotificationService.send_slack(chat_msg)
-        NotificationService.send_discord(chat_msg)
+        if priority not in VALID_PRIORITIES:
+            raise ValueError(f"priority must be one of {VALID_PRIORITIES}, got '{priority}'")
+        unknown = set(channels) - VALID_CHANNELS
+        if unknown:
+            raise ValueError(f"unknown channel(s): {unknown}")
+
+        recipients = recipients or {}
+        results: list[Notification] = []
+
+        for channel in channels:
+            record = Notification(
+                event_type=event_type,
+                priority=priority,
+                title=title,
+                message=message,
+                machine_id=machine_id,
+                metadata_json=json.dumps(metadata) if metadata else None,
+                channel=channel,
+                recipient=recipients.get(channel),
+                status="pending",
+                attempts=0,
+                requires_ack=requires_ack,
+            )
+            db.add(record)
+            db.commit()
+            db.refresh(record)
+
+            for attempt in range(1, settings.notification_max_retries + 1):
+                record.attempts = attempt
+                try:
+                    if channel == "email":
+                        await NotificationService._send_email(
+                            title, message, recipients.get("email", settings.smtp_from_address)
+                        )
+                    elif channel == "slack":
+                        await NotificationService._send_slack(f"*{title}*\n{message}")
+                    elif channel == "teams":
+                        await NotificationService._send_teams(title, message)
+                    elif channel == "discord":
+                        await NotificationService._send_discord(f"**{title}**\n{message}")
+                    elif channel == "sms":
+                        to_number = recipients.get("sms")
+                        if not to_number:
+                            raise ChannelNotConfigured("no SMS recipient number provided")
+                        await NotificationService._send_sms(f"{title}: {message}", to_number)
+                    elif channel == "webhook":
+                        if not webhook_url:
+                            raise ChannelNotConfigured("no webhook_url provided")
+                        await NotificationService._send_webhook(
+                            webhook_url,
+                            {"event_type": event_type, "title": title, "message": message,
+                             "priority": priority, "machine_id": machine_id, "metadata": metadata},
+                        )
+
+                    record.status = "sent"
+                    record.sent_at = datetime.now(timezone.utc)
+                    record.last_error = None
+                    break
+
+                except ChannelNotConfigured as exc:
+                    # Not configured is not worth retrying.
+                    record.status = "failed"
+                    record.last_error = str(exc)
+                    logger.debug(f"Notification channel '{channel}' skipped: {exc}")
+                    break
+
+                except Exception as exc:
+                    record.last_error = str(exc)
+                    logger.warning(f"Notification via '{channel}' failed (attempt {attempt}): {exc}")
+                    if attempt == settings.notification_max_retries:
+                        record.status = "failed"
+
+            db.commit()
+            db.refresh(record)
+            results.append(record)
+
+        return results
+
+    @staticmethod
+    def acknowledge(db: Session, notification_id: str, user_id: str) -> Notification | None:
+        """Mark a notification acknowledged, stopping further escalation."""
+        record = db.query(Notification).filter(
+            Notification.id == notification_id, Notification.is_deleted == False
+        ).first()
+        if not record:
+            return None
+        record.acknowledged_at = datetime.now(timezone.utc)
+        record.acknowledged_by = user_id
+        db.commit()
+        db.refresh(record)
+        return record
+
+    @staticmethod
+    def get_unacknowledged_for_escalation(db: Session) -> list[Notification]:
+        """Find critical/high-priority notifications past the escalation
+        window that are still unacknowledged and haven't already escalated."""
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=settings.notification_escalation_minutes)
+        return db.query(Notification).filter(
+            Notification.is_deleted == False,
+            Notification.requires_ack == True,
+            Notification.acknowledged_at.is_(None),
+            Notification.escalated_at.is_(None),
+            Notification.priority.in_(["high", "critical"]),
+            Notification.created_at <= cutoff,
+        ).all()
+
+    @staticmethod
+    async def escalate_unacknowledged(db: Session) -> int:
+        """Re-broadcast unacknowledged critical/high alerts to email + Slack
+        as an escalation, and stamp them so they don't escalate repeatedly.
+        Intended to be run periodically (e.g. Celery beat). Returns count escalated.
+        """
+        pending = NotificationService.get_unacknowledged_for_escalation(db)
+        for record in pending:
+            escalation_msg = (
+                f"⚠️ ESCALATION: '{record.title}' has been unacknowledged for over "
+                f"{settings.notification_escalation_minutes} minutes."
+            )
+            await NotificationService.dispatch(
+                db,
+                event_type=f"{record.event_type}_escalation",
+                title=f"[ESCALATED] {record.title}",
+                message=escalation_msg,
+                channels=["email", "slack"],
+                priority="critical",
+                machine_id=record.machine_id,
+                requires_ack=False,
+            )
+            record.escalated_at = datetime.now(timezone.utc)
+        db.commit()
+        return len(pending)
+
+    @staticmethod
+    async def trigger_defect_alerts(
+        db: Session, defect_type: str, confidence: float, machine_name: str, machine_id: str | None = None
+    ) -> list[Notification]:
+        """Convenience wrapper for the most common alert: a critical defect detection."""
+        title = f"🚨 Critical defect detected: {defect_type.replace('_', ' ').title()}"
+        message = (
+            f"A critical defect has been detected on the factory floor.\n"
+            f"Defect type: {defect_type.replace('_', ' ').title()}\n"
+            f"Confidence: {round(confidence * 100, 2)}%\n"
+            f"Machine: {machine_name}\n"
+            f"Please review the inspection result immediately."
+        )
+        return await NotificationService.dispatch(
+            db,
+            event_type="critical_defect",
+            title=title,
+            message=message,
+            channels=["email", "slack", "discord"],
+            priority="critical",
+            machine_id=machine_id,
+            recipients={"email": "supervisor@nika.ai"},
+            requires_ack=True,
+            metadata={"defect_type": defect_type, "confidence": confidence, "machine_name": machine_name},
+        )

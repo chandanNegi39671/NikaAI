@@ -123,6 +123,29 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     hf_api_key: str = ""
 
+    # ── Notifications (Sprint 7) ───────────────────────────────────────────────
+    # SMTP
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_address: str = "alerts@nika.ai"
+    smtp_use_tls: bool = True
+
+    # Webhook integrations
+    slack_webhook_url: str = ""
+    teams_webhook_url: str = ""
+    discord_webhook_url: str = ""
+
+    # Twilio SMS
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_from_number: str = ""
+
+    # Dispatch behaviour
+    notification_max_retries: int = 3
+    notification_escalation_minutes: int = 15  # unacknowledged critical alerts escalate after this many minutes
+
 
     @field_validator("secret_key")
     @classmethod
