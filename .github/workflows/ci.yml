@@ -1,0 +1,110 @@
+name: Nika AI CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+jobs:
+  # ── Backend Tests ─────────────────────────────────────────────────────────
+  backend-test:
+    name: Backend · Lint + Tests + Coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      # Use SQLite in CI — no Postgres or Redis required for unit tests
+      DATABASE_URL: sqlite:///:memory:
+      ENVIRONMENT: testing
+      SECRET_KEY: ci_testing_secret_key_at_least_32_characters_long
+      REDIS_URL: redis://localhost:6379/0
+      LOG_FORMAT: text
+      LOG_LEVEL: WARNING
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests with coverage
+        run: |
+          pytest \
+            --cov=app \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            -m "not integration" \
+            -v
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+
+  # ── Frontend Tests ────────────────────────────────────────────────────────
+  frontend-test:
+    name: Frontend · Type Check + Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Run frontend tests
+        run: npm run test -- --run
+
+  # ── Docker Build Validation ───────────────────────────────────────────────
+  docker-build:
+    name: Docker · Build Validation
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: |
+          docker build \
+            --file backend/Dockerfile \
+            --tag nika-backend:ci-${{ github.sha }} \
+            backend/
+
+      - name: Verify image runs as non-root
+        run: |
+          USER=$(docker run --rm nika-backend:ci-${{ github.sha }} whoami)
+          echo "Container user: $USER"
+          test "$USER" != "root" || (echo "ERROR: Container runs as root!" && exit 1)

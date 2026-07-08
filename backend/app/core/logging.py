@@ -25,7 +25,9 @@ from __future__ import annotations
 
 import json
 import logging
+from logging.handlers import RotatingFileHandler
 import sys
+from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any
 
@@ -96,21 +98,38 @@ def setup_logging(level: str = "INFO", fmt: str = "json") -> None:
     """
     numeric_level = getattr(logging, level.upper(), logging.INFO)
 
-    handler = logging.StreamHandler(sys.stdout)
+    handlers = []
+    
+    # 1. Console Handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    handlers.append(console_handler)
+    
+    # 2. Rotating File Handler
+    log_dir = Path("logs")
+    log_dir.mkdir(parents=True, exist_ok=True)
+    file_handler = RotatingFileHandler(
+        filename=log_dir / "nika_ai.log",
+        maxBytes=10 * 1024 * 1024,  # 10 MB
+        backupCount=5,
+        encoding="utf-8"
+    )
+    handlers.append(file_handler)
 
     if fmt == "json":
-        handler.setFormatter(JsonFormatter())
+        formatter = JsonFormatter()
     else:
-        handler.setFormatter(
-            logging.Formatter(fmt=_TEXT_FORMAT, datefmt=_DATE_FORMAT)
-        )
+        formatter = logging.Formatter(fmt=_TEXT_FORMAT, datefmt=_DATE_FORMAT)
+
+    for h in handlers:
+        h.setFormatter(formatter)
 
     root = logging.getLogger()
     root.setLevel(numeric_level)
 
     # Remove any pre-existing handlers (e.g. added by uvicorn)
     root.handlers.clear()
-    root.addHandler(handler)
+    for h in handlers:
+        root.addHandler(h)
 
     # Silence overly verbose third-party loggers
     for noisy in ("ultralytics", "urllib3", "httpx", "PIL"):

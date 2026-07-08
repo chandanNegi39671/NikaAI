@@ -51,12 +51,30 @@ def init_db() -> None:
             db.add_all([m1, m2, m3])
             db.commit()
 
-        # 3. Seed Users
+        # 3. Seed Users — using proper bcrypt hashes so demo accounts are actually usable
         if db.query(User).count() == 0:
-            logger.info("Seeding default users...")
-            u1 = User(username="operator1", email="operator1@nika.ai", password_hash="pbkdf2:sha256:...", role="operator")
-            u2 = User(username="manager1", email="manager1@nika.ai", password_hash="pbkdf2:sha256:...", role="manager")
-            u3 = User(username="admin1", email="admin1@nika.ai", password_hash="pbkdf2:sha256:...", role="admin")
+            logger.info("Seeding default users (dev/demo accounts)...")
+            # Deferred import to avoid circular dependency at module level
+            from app.core.auth import get_password_hash
+
+            u1 = User(
+                username="operator1",
+                email="operator1@nika.ai",
+                password_hash=get_password_hash("operator123"),
+                role="operator",
+            )
+            u2 = User(
+                username="supervisor1",
+                email="supervisor1@nika.ai",
+                password_hash=get_password_hash("supervisor123"),
+                role="supervisor",
+            )
+            u3 = User(
+                username="admin1",
+                email="admin1@nika.ai",
+                password_hash=get_password_hash("admin123"),
+                role="admin",
+            )
             db.add_all([u1, u2, u3])
             db.commit()
 

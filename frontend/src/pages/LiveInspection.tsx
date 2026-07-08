@@ -5,7 +5,7 @@
  * bounding box overlays, parameter tuning, camera selection, and a drag-and-drop file upload interface.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -156,7 +156,7 @@ export default function LiveInspection() {
   }
 
   // Trigger GPU inference on uploaded image file
-  const handleUploadScan = async () => {
+  const handleUploadScan = useCallback(async () => {
     if (!uploaded || uploaded.status !== 'ready' || isProcessing) return
 
     setProcessing(true)
@@ -175,7 +175,7 @@ export default function LiveInspection() {
       setProcessing(false)
       notify.error('Scan failed', err.message)
     }
-  }
+  }, [uploaded, isProcessing, setProcessing, setError, notify, navigate, setResult])
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-black flex flex-col justify-between">

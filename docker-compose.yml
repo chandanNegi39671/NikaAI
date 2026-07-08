@@ -1,0 +1,129 @@
+version: '3.8'
+
+# ── Shared configuration ──────────────────────────────────────────────────────
+# Use an .env file at the project root to override any defaults.
+# NEVER commit real secrets to this file. Use Docker secrets or a vault in prod.
+
+x-backend-env: &backend-env
+  DATABASE_URL: ${DATABASE_URL:-postgresql://nika_user:changeme_in_prod@db:5432/nika_db}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
+  CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
+  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set in environment}
+  ENVIRONMENT: ${ENVIRONMENT:-production}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_FORMAT: ${LOG_FORMAT:-json}
+  CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost", "http://localhost:80"]}
+
+services:
+  # ── Frontend ─────────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── API Backend ───────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - uploads_data:/app/static/uploads
+      - model_data:/app/app/models
+      - logs_data:/app/logs
+    environment:
+      <<: *backend-env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
+
+  # ── Celery Worker (YOLO inference + background tasks) ─────────────────────────
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.core.celery_app.celery_app worker --loglevel=info --concurrency=2 -Q default
+    volumes:
+      - uploads_data:/app/static/uploads
+      - model_data:/app/app/models
+      - logs_data:/app/logs
+    environment:
+      <<: *backend-env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Celery Beat Scheduler (cron tasks) ────────────────────────────────────────
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.core.celery_app.celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+    environment:
+      <<: *backend-env
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Redis (cache + Celery broker) ─────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── PostgreSQL Database ────────────────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nika_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in environment}
+      POSTGRES_DB: ${POSTGRES_DB:-nika_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nika_user} -d ${POSTGRES_DB:-nika_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:
+  model_data:
+  logs_data:

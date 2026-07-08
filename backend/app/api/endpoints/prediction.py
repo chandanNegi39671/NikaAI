@@ -34,14 +34,14 @@ MIME type allow-list (enforced before Pillow decodes):
     image/jpeg, image/jpg, image/png
 """
 
-from __future__ import annotations
+# from __future__ import annotations
 
 import io
 from typing import Annotated
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status, Depends
+from fastapi import APIRouter, File, HTTPException, UploadFile, status, Depends, Request
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -52,12 +52,15 @@ from app.models.db_models import Inspection, Detection as DbDetection, AIExplana
 from app.services.gemma import generate_explanation
 from app.exceptions import InvalidImageError, ModelNotLoadedError, PredictionError
 from app.services.prediction import PredictionResult, prediction_service
+from app.core.auth import PermissionChecker
+from app.core.limiter import limiter
 
 logger = get_logger(__name__)
 
 router = APIRouter(
     prefix="/api/v1",
     tags=["Prediction"],
+    dependencies=[Depends(PermissionChecker("inspection:write"))]
 )
 
 # ── Allowed MIME types at the HTTP boundary (before Pillow opens the file) ───
@@ -323,9 +326,6 @@ def _build_response(result: PredictionResult, inspection_id: str | None = None) 
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Route
-# ─────────────────────────────────────────────────────────────────────────────
-
 @router.post(
     "/predict",
     response_model=PredictResponse,
@@ -376,7 +376,9 @@ def _build_response(result: PredictionResult, inspection_id: str | None = None) 
         503: {"description": "Model not loaded — service not ready."},
     },
 )
+@limiter.limit("20/minute")
 async def predict(
+    request: Request,
     image: Annotated[
         UploadFile,
         File(
@@ -442,42 +444,130 @@ async def predict(
             detail=exc.message,
         )
 
-    # ── Gate 5: Inference ─────────────────────────────────────────────────────
-    try:
-        result: PredictionResult = prediction_service.predict(pil_image)
-    except ModelNotLoadedError as exc:
-        logger.error(
-            "Model not loaded when predict() was called.",
-            extra={"error": exc.message},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Model is not loaded. The service is not ready for inference.",
-        )
-    except PredictionError as exc:
-        logger.error(
-            "Inference failed.",
-            extra={"filename": filename, "error": exc.message},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Inference failed: {exc.reason}",
-        )
+    # ── Prediction Caching & Inference (Celery with fallback) ─────────────────
+    import hashlib
+    import json
+    from app.core.redis import cache_get, cache_set
+    
+    image_hash = hashlib.sha256(raw).hexdigest()
+    cache_key = f"prediction:hash:{image_hash}"
+    cached_res = cache_get(cache_key)
+    
+    result = None
+    if cached_res:
+        logger.info(f"Prediction cache hit for hash: {image_hash}")
+        try:
+            from app.core.metrics import CACHE_HITS
+            CACHE_HITS.labels(cache_type="prediction").inc()
+        except Exception:
+            pass
+        try:
+            res_dict = json.loads(cached_res)
+            # Reconstruct PredictionResult object
+            from app.services.prediction import PredictionResult, Detection, BoundingBox
+            detections = []
+            for d in res_dict.get("detections", []):
+                bbox = d.get("bounding_box", {})
+                detections.append(Detection(
+                    defect=d.get("defect"),
+                    confidence=d.get("confidence"),
+                    bounding_box=BoundingBox(
+                        x1=bbox.get("x1"), y1=bbox.get("y1"),
+                        x2=bbox.get("x2"), y2=bbox.get("y2")
+                    )
+                ))
+            result = PredictionResult(
+                detections=detections,
+                inference_time_ms=res_dict.get("inference_time_ms", 0.0),
+                image_width=res_dict.get("image_width", 640),
+                image_height=res_dict.get("image_height", 640)
+            )
+        except Exception as exc:
+            logger.warning(f"Failed to parse cached prediction: {exc}")
 
-    # ── Gate 6: Save Image to static/uploads ──────────────────────────────────
+    if not result:
+        try:
+            from app.core.metrics import CACHE_MISSES
+            CACHE_MISSES.labels(cache_type="prediction").inc()
+        except Exception:
+            pass
+        # Call Celery task for inference
+        try:
+            import base64
+            from app.services.tasks import run_yolo_inference
+            image_base64 = base64.b64encode(raw).decode("utf-8")
+            
+            task_res = run_yolo_inference.delay(
+                image_base64,
+                session_id or "",
+                machine_id or "",
+                worker_id or "",
+                shift_id or ""
+            ).get(timeout=10.0)
+            
+            if task_res and task_res.get("success") != False:
+                from app.services.prediction import PredictionResult, Detection, BoundingBox
+                detections = []
+                for d in task_res.get("detections", []):
+                    bbox = d.get("bounding_box", {})
+                    detections.append(Detection(
+                        defect=d.get("defect"),
+                        confidence=d.get("confidence"),
+                        bounding_box=BoundingBox(
+                            x1=bbox.get("x1"), y1=bbox.get("y1"),
+                            x2=bbox.get("x2"), y2=bbox.get("y2")
+                        )
+                    ))
+                result = PredictionResult(
+                    detections=detections,
+                    inference_time_ms=task_res.get("inference_time_ms", 0.0),
+                    image_width=task_res.get("image_width", 640),
+                    image_height=task_res.get("image_height", 640)
+                )
+        except Exception as celery_exc:
+            logger.warning(f"Celery inference failed or timed out, falling back to local service: {celery_exc}")
+
+    if not result:
+        # Fallback to local prediction service
+        try:
+            result = prediction_service.predict(pil_image)
+        except ModelNotLoadedError as exc:
+            logger.error("Model not loaded when predict() was called.", extra={"error": exc.message})
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Model is not loaded. The service is not ready for inference.",
+            )
+        except PredictionError as exc:
+            logger.error("Inference failed.", extra={"filename": filename, "error": exc.message})
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Inference failed: {exc.reason}",
+            )
+
+    # Save to Redis cache
+    try:
+        cache_set(cache_key, json.dumps(result.to_dict()), ttl=86400) # cache for 1 day
+    except Exception as exc:
+        logger.warning(f"Failed to cache prediction: {exc}")
+
+    # Record YOLO latency metrics in Prometheus
+    try:
+        from app.core.metrics import YOLO_INFERENCE_TIME, YOLO_FPS
+        YOLO_INFERENCE_TIME.observe(result.inference_time_ms / 1000.0)
+        if result.inference_time_ms > 0:
+            YOLO_FPS.set(1000.0 / result.inference_time_ms)
+    except Exception:
+        pass
+
+    # ── Gate 6: Save Image using Storage Provider Adapter ─────────────────────
     ext = Path(filename).suffix or ".jpg"
     unique_filename = f"{uuid.uuid4()}{ext}"
-    static_dir = Path(__file__).resolve().parent.parent.parent.parent / "static"
-    upload_dir = static_dir / "uploads"
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    image_file_path = upload_dir / unique_filename
     
     try:
-        with open(image_file_path, "wb") as buffer:
-            buffer.write(raw)
-        db_image_path = f"/static/uploads/{unique_filename}"
+        from app.core.storage import storage_provider
+        db_image_path = storage_provider.save(raw, unique_filename)
     except Exception as exc:
-        logger.error(f"Failed to write image to disk: {exc}")
+        logger.error(f"Failed to save image using storage provider: {exc}")
         db_image_path = None
 
     # ── Gate 7: Database Persistence ──────────────────────────────────────────
@@ -553,30 +643,74 @@ async def predict(
             )
             db.add(db_det)
 
-        # Save AI Explanation
+        # Save AI Explanation (conditionally based on feature flag)
+        from app.services.features import is_feature_enabled
         if result.has_defects:
             top_defect = result.detections[0]
-            explanation_res = generate_explanation(top_defect.defect)
-            db_explanation = AIExplanation(
-                inspection_id=db_inspection.id,
-                gemma_explanation=explanation_res.explanation_text,
-                trust_score=explanation_res.trust_score,
-                explanation_json=explanation_res.explanation_json
-            )
-            db.add(db_explanation)
+            if is_feature_enabled("gemma_explanations"):
+                explanation_res = generate_explanation(top_defect.defect)
+                db_explanation = AIExplanation(
+                    inspection_id=db_inspection.id,
+                    gemma_explanation=explanation_res.explanation_text,
+                    trust_score=explanation_res.trust_score,
+                    explanation_json=explanation_res.explanation_json
+                )
+                db.add(db_explanation)
+            
+            # Publish prediction completed event to the Event Bus
+            try:
+                from app.core.events import event_bus
+                machine_name = db_machine.name if db_machine else "Unknown Machine"
+                event_payload = {
+                    "inspection_id": db_inspection.id,
+                    "status": status_str,
+                    "defect_type": top_defect.defect,
+                    "confidence": top_defect.confidence,
+                    "machine_name": machine_name
+                }
+                event_bus.publish("prediction_finished", event_payload)
+            except Exception as ev_exc:
+                logger.warning(f"Failed to publish event to EventBus: {ev_exc}")
         else:
-            explanation_res = generate_explanation("no_defect")
-            db_explanation = AIExplanation(
-                inspection_id=db_inspection.id,
-                gemma_explanation="No defects detected. Part is within nominal quality tolerance.",
-                trust_score=1.0,
-                explanation_json=explanation_res.explanation_json
-            )
-            db.add(db_explanation)
+            if is_feature_enabled("gemma_explanations"):
+                explanation_res = generate_explanation("no_defect")
+                db_explanation = AIExplanation(
+                    inspection_id=db_inspection.id,
+                    gemma_explanation="No defects detected. Part is within nominal quality tolerance.",
+                    trust_score=1.0,
+                    explanation_json=explanation_res.explanation_json
+                )
+                db.add(db_explanation)
 
         db.commit()
         inspection_id = db_inspection.id
         logger.info(f"Persisted inspection to DB. ID: {inspection_id}, Status: {status_str}")
+        
+        # Broadcast over WebSockets
+        try:
+            import asyncio
+            from app.api.endpoints.websocket import manager
+            ws_data = {
+                "event": "new_inspection",
+                "inspection": {
+                    "id": inspection_id,
+                    "status": status_str,
+                    "confidence": avg_confidence,
+                    "latency_ms": result.inference_time_ms,
+                    "machine_id": machine_id,
+                    "image_path": db_image_path
+                }
+            }
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(manager.broadcast_global(ws_data))
+                if machine_id:
+                    loop.create_task(manager.broadcast_to_machine(machine_id, ws_data))
+            except RuntimeError:
+                pass  # No running event loop — skip WS broadcast
+        except Exception as ws_exc:
+            logger.warning(f"Failed to broadcast websocket notification: {ws_exc}")
+            
     except Exception as db_exc:
         db.rollback()
         inspection_id = None

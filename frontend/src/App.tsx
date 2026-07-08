@@ -13,7 +13,6 @@ import { AnimatePresence } from 'framer-motion'
 import ErrorBoundary from './components/ErrorBoundary'
 import OfflineBanner from './components/OfflineBanner'
 import NotificationStack from './components/NotificationStack'
-import SkeletonLoader from './components/SkeletonLoader'
 
 // Code splitting / Lazy loading components
 const Home = lazy(() => import('./pages/Home'))
@@ -21,6 +20,14 @@ const LiveInspection = lazy(() => import('./pages/LiveInspection'))
 const InspectionResult = lazy(() => import('./pages/InspectionResult'))
 const FactoryMemory = lazy(() => import('./pages/FactoryMemory'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Maintenance = lazy(() => import('./pages/Maintenance'))
+
+// Sprint 8 Pages
+const Copilot = lazy(() => import('./pages/Copilot'))
+const ModelRegistry = lazy(() => import('./pages/ModelRegistry'))
+const InferenceHistory = lazy(() => import('./pages/InferenceHistory'))
+const AuditLogs = lazy(() => import('./pages/AuditLogs'))
+const VisualizationViewer = lazy(() => import('./pages/VisualizationViewer'))
 
 export default function App() {
   return (
@@ -47,6 +54,14 @@ export default function App() {
               <Route path="/inspect/result" element={<InspectionResult />} />
               <Route path="/history" element={<FactoryMemory />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/maintenance" element={<Maintenance />} />
+              
+              {/* Sprint 8 Routes */}
+              <Route path="/copilot" element={<Copilot />} />
+              <Route path="/registry" element={<ModelRegistry />} />
+              <Route path="/inference" element={<InferenceHistory />} />
+              <Route path="/audit" element={<AuditLogs />} />
+              <Route path="/visualization/:id" element={<VisualizationViewer />} />
               
               {/* Fallback routing */}
               <Route path="*" element={<Navigate to="/" replace />} />

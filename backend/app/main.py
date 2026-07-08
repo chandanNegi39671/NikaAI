@@ -29,9 +29,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import router                        # single versioned router — all routes
-from app.core.config import settings
+from app.core.config import settings, Environment
 from app.core.logging import get_logger, setup_logging
 from app.services.prediction import prediction_service
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from app.core.limiter import limiter
+from app.core.middleware import SecurityMiddleware
 
 logger = get_logger(__name__)
 
@@ -107,6 +111,9 @@ def create_app() -> FastAPI:
     Returns:
         A fully configured ``FastAPI`` instance ready to be served by uvicorn.
     """
+    # Disable docs in production
+    _is_production = settings.env == Environment.PRODUCTION
+
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
@@ -115,19 +122,25 @@ def create_app() -> FastAPI:
             "Upload an image to receive YOLOv8 defect detections with "
             "bounding boxes and confidence scores."
         ),
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
-        openapi_url="/api/openapi.json",
+        docs_url=None if _is_production else "/api/docs",
+        redoc_url=None if _is_production else "/api/redoc",
+        openapi_url=None if _is_production else "/api/openapi.json",
         lifespan=lifespan,
     )
+
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    # ── Middleware ────────────────────────────────────────────────────────────
+    app.add_middleware(SecurityMiddleware)
 
     # ── CORS ──────────────────────────────────────────────────────────────────
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Accept"],
     )
 
     # ── Routes ────────────────────────────────────────────────────────────────
@@ -136,6 +149,14 @@ def create_app() -> FastAPI:
     # no additional prefix is added here.
     app.include_router(router)
 
+    # ── Prometheus Metrics ───────────────────────────────────────────────────
+    from app.core.metrics import metrics_app
+    app.mount("/metrics", metrics_app)
+
+    # ── OpenTelemetry Tracing ────────────────────────────────────────────────
+    from app.core.telemetry import setup_telemetry
+    setup_telemetry(app)
+
     # ── Static Files ──────────────────────────────────────────────────────────
     from fastapi.staticfiles import StaticFiles
     from pathlib import Path
@@ -143,6 +164,43 @@ def create_app() -> FastAPI:
     static_dir.mkdir(parents=True, exist_ok=True)
     (static_dir / "uploads").mkdir(parents=True, exist_ok=True)
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+    # ── Custom OpenAPI / Swagger Documentation ──────────────────────────────
+    from fastapi.openapi.utils import get_openapi
+    
+    def custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+            
+        openapi_schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+        
+        # Include detailed schema descriptions for standard enterprise HTTP errors
+        if "components" not in openapi_schema:
+            openapi_schema["components"] = {}
+        if "schemas" not in openapi_schema["components"]:
+            openapi_schema["components"]["schemas"] = {}
+            
+        openapi_schema["components"]["schemas"]["ErrorSchema"] = {
+            "title": "ErrorSchema",
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "title": "Error Detail Description",
+                    "type": "string",
+                    "example": "Resource not found or validation error details."
+                }
+            }
+        }
+        
+        app.openapi_schema = openapi_schema
+        return app.openapi_schema
+
+    app.openapi = custom_openapi
 
     return app
 

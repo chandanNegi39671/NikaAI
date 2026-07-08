@@ -5,14 +5,16 @@ Endpoints for managing historical inspections.
 """
 
 from __future__ import annotations
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.models.db_models import Inspection
+from app.models.db_models import Inspection, User
+from app.core.auth import PermissionChecker, get_current_user
 
 router = APIRouter(
     prefix="/api/v1/inspections",
     tags=["Inspections"],
+    dependencies=[Depends(PermissionChecker("inspection:read"))]
 )
 
 @router.get("")
@@ -26,19 +28,11 @@ def list_inspections(
     db: Session = Depends(get_db)
 ):
     """Retrieve historical inspection sessions with pagination and multi-variable filtering."""
-    q = db.query(Inspection).filter(Inspection.is_deleted == False)
-    
-    if status_filter:
-        q = q.filter(Inspection.status == status_filter.upper())
-    if machine_id:
-        q = q.filter(Inspection.machine_id == machine_id)
-    if worker_id:
-        q = q.filter(Inspection.worker_id == worker_id)
-    if shift_id:
-        q = q.filter(Inspection.shift_id == shift_id)
-        
-    total = q.count()
-    inspections = q.order_by(Inspection.created_at.desc()).offset(offset).limit(limit).all()
+    from app.core.repository import inspection_repo
+    inspections = inspection_repo.list_with_filters(
+        db, status=status_filter, machine_id=machine_id, limit=limit, offset=offset
+    )
+    total = len(inspections)
     
     data = []
     for ins in inspections:
@@ -101,8 +95,13 @@ def get_inspection(id: str, db: Session = Depends(get_db)):
         } if ins.explanation else None
     }
 
-@router.delete("/{id}")
-def delete_inspection(id: str, db: Session = Depends(get_db)):
+@router.delete("/{id}", dependencies=[Depends(PermissionChecker("inspection:write"))])
+def delete_inspection(
+    id: str, 
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """Soft-delete an inspection from visual timelines and dashboards."""
     ins = db.query(Inspection).filter(Inspection.id == id, Inspection.is_deleted == False).first()
     if not ins:
@@ -112,4 +111,17 @@ def delete_inspection(id: str, db: Session = Depends(get_db)):
         )
     ins.is_deleted = True
     db.commit()
+    
+    # Audit log entry
+    from app.services.audit import log_activity
+    log_activity(
+        db=db,
+        action="delete_inspection",
+        user_id=current_user.id,
+        entity_type="inspection",
+        entity_id=id,
+        description=f"Soft-deleted inspection ID {id}.",
+        request=request
+    )
+    
     return {"success": True, "detail": "Inspection soft-deleted successfully."}

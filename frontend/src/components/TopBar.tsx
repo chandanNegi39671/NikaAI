@@ -10,9 +10,14 @@ import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 
 const navLinks = [
-  { label: 'DASHBOARD', to: '/dashboard' },
-  { label: 'HISTORY',   to: '/history'   },
-  { label: 'CAMERA',    to: '/inspect'   },
+  { label: 'DASHBOARD',    to: '/dashboard'    },
+  { label: 'MAINTENANCE',  to: '/maintenance'  },
+  { label: 'HISTORY',      to: '/history'      },
+  { label: 'CAMERA',       to: '/inspect'      },
+  { label: 'COPILOT',      to: '/copilot'      },
+  { label: 'REGISTRY',     to: '/registry'     },
+  { label: 'INFERENCE',    to: '/inference'    },
+  { label: 'AUDIT',        to: '/audit'        },
 ]
 
 export default function TopBar() {
@@ -33,7 +38,7 @@ export default function TopBar() {
         </Link>
 
         {/* Desktop nav */}
-        <div className="hidden md:flex gap-8 items-center">
+        <div className="hidden md:flex gap-6 items-center">
           {navLinks.map(({ label, to }) => {
             const isActive = pathname.startsWith(to)
             return (

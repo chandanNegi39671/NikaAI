@@ -13,15 +13,31 @@ from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 from app.core.config import settings
 
-# For SQLite, allow multiple threads to access the connection
+# Database connection pool configurations based on dialect
 connect_args = {}
-if settings.database_url.startswith("sqlite"):
+pool_kwargs = {}
+
+# Standardize postgresql vs postgres scheme for SQLAlchemy 1.4+
+database_url = settings.database_url
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+if database_url.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
+else:
+    # Production PostgreSQL connection pool tuning
+    pool_kwargs = {
+        "pool_size": 10,
+        "max_overflow": 20,
+        "pool_pre_ping": True,     # Pre-check database connections before checkout
+        "pool_recycle": 1800,     # Recycle connections after 30 minutes to prevent stale links
+    }
 
 engine = create_engine(
-    settings.database_url,
+    database_url,
     connect_args=connect_args,
-    echo=False,  # Set to True in debug if needed
+    echo=settings.debug,
+    **pool_kwargs
 )
 
 SessionLocal = sessionmaker(

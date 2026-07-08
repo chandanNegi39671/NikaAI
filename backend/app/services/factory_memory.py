@@ -5,15 +5,25 @@ Factory Memory Knowledge Base Service for Nika AI.
 """
 
 from __future__ import annotations
+import json
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.db_models import FactoryMemory, Inspection, Detection, Machine
+from app.core.redis import cache_get, cache_set
 
 def get_factory_memories(db: Session, query: str | None = None) -> list[dict]:
     """Retrieve historical defect classes, recommended actions, and occurrence metrics.
 
-    Provides basic text search across classes and patterns.
+    Provides basic text search across classes and patterns. Results are cached.
     """
+    cache_key = f"factory_memory:query:{query or 'ALL'}"
+    cached = cache_get(cache_key)
+    if cached:
+        try:
+            return json.loads(cached)
+        except Exception:
+            pass
+
     q = db.query(FactoryMemory)
     if query:
         search = f"%{query}%"
@@ -59,4 +69,6 @@ def get_factory_memories(db: Session, query: str | None = None) -> list[dict]:
             "totalOccurrences": total_occurrences,
             "topRiskMachine": risk_machine
         })
+        
+    cache_set(cache_key, json.dumps(response), ttl=300)
     return response

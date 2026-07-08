@@ -35,6 +35,7 @@ from pydantic import BaseModel, Field
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.services.prediction import prediction_service
+from sqlalchemy import text
 
 logger = get_logger(__name__)
 
@@ -185,3 +186,92 @@ async def health_check() -> HealthResponse:
     )
 
     return response
+
+
+@router.get(
+    "/ready",
+    summary="Readiness check",
+    description="Detailed readiness check validating DB, Redis, and YOLO model statuses."
+)
+async def ready_check():
+    """Verify that all core services are online and ready to accept requests."""
+    # 1. DB Connection Check
+    db_ok = False
+    try:
+        from app.core.database import SessionLocal
+        db = SessionLocal()
+        # Run a simple query to assert DB health
+        db.execute(text("SELECT 1"))
+        db_ok = True
+    except Exception as exc:
+        logger.error(f"Readiness check DB failure: {exc}")
+    finally:
+        db.close()
+
+    # 2. Redis Connection Check
+    redis_ok = False
+    try:
+        from app.core.redis import get_redis
+        redis_client = get_redis()
+        if redis_client and redis_client.ping():
+            redis_ok = True
+    except Exception as exc:
+        logger.error(f"Readiness check Redis failure: {exc}")
+
+    # 3. Model Loaded Check
+    model_ok = prediction_service.is_loaded
+
+    status_code = 200
+    if not (db_ok and redis_ok and model_ok):
+        status_code = 503
+
+    from fastapi import Response
+    import json
+    content = {
+        "status": "ready" if status_code == 200 else "degraded",
+        "database": "online" if db_ok else "offline",
+        "redis": "online" if redis_ok else "offline",
+        "yolo_model": "loaded" if model_ok else "not_loaded"
+    }
+    return Response(
+        content=json.dumps(content),
+        media_type="application/json",
+        status_code=status_code
+    )
+
+
+@router.get(
+    "/live",
+    summary="Liveness check",
+    description="System liveness heartbeat check validating disk, CPU, and RAM thresholds."
+)
+async def live_check():
+    """Rapid hardware sanity check for Kubernetes liveness checks."""
+    import shutil
+    import psutil
+    from fastapi import Response
+    import json
+
+    # Disk Space check
+    total, used, free = shutil.disk_usage("/")
+    free_percent = (free / total) * 100
+    disk_ok = free_percent > 5.0  # Safe boundary: > 5% free disk
+
+    # Memory Check
+    mem = psutil.virtual_memory()
+    mem_ok = mem.percent < 95.0   # Safe boundary: < 95% RAM utilization
+
+    status_code = 200
+    if not (disk_ok and mem_ok):
+        status_code = 503
+
+    content = {
+        "status": "healthy" if status_code == 200 else "degraded",
+        "disk_free_percent": round(free_percent, 2),
+        "ram_used_percent": mem.percent
+    }
+    return Response(
+        content=json.dumps(content),
+        media_type="application/json",
+        status_code=status_code
+    )

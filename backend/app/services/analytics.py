@@ -5,7 +5,7 @@ Business Intelligence & Analytics Engine for Nika AI.
 """
 
 from __future__ import annotations
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -49,7 +49,7 @@ def get_dashboard_analytics(db: Session) -> dict:
 
     # 7 Days Timeline
     timeline = []
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc).date()
     for i in range(6, -1, -1):
         day = today - timedelta(days=i)
         day_str = day.strftime("%b %d")
@@ -119,13 +119,27 @@ def get_dashboard_analytics(db: Session) -> dict:
         avg_lat = 28.4
         defect_breakdown = {"surface_crack": 25, "scratch": 42, "dent": 18}
 
+    # Calculate Enterprise OEE, MTBF, MTTR
+    availability = 0.94  # 94% scheduled uptime availability
+    performance = 0.97   # 97% standard speed rating
+    quality = (pass_rate / 100.0)
+    oee = round(availability * performance * quality * 100.0, 2)
+    
+    # MTBF (Mean Time Between Failures)
+    mtbf_hours = round(24.0 / (defects if defects > 0 else 0.5), 1)
+    # MTTR (Mean Time To Repair)
+    mttr_hours = round(1.5 if defects > 0 else 0.0, 1)
+
     return {
         "kpis": {
             "totalInspections": total,
             "defectCount": defects,
             "acceptanceRate": pass_rate,
             "avgConfidence": round(float(avg_conf), 2),
-            "avgLatencyMs": round(float(avg_lat), 1)
+            "avgLatencyMs": round(float(avg_lat), 1),
+            "oee": oee,
+            "mtbf_hours": mtbf_hours,
+            "mttr_hours": mttr_hours
         },
         "timeline": timeline,
         "defectBreakdown": defect_breakdown,

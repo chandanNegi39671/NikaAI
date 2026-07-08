@@ -9,10 +9,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.db_models import Worker, Shift
+from app.core.auth import PermissionChecker
 
 router = APIRouter(
     prefix="/api/v1/workers",
     tags=["Workers & Shifts"],
+    dependencies=[Depends(PermissionChecker("inspection:read"))]
 )
 
 @router.get("")

@@ -202,6 +202,14 @@ class PredictionService:
         self._assert_model_file_exists()
         self._load_weights()
 
+    def switch_model(self, new_model_path: Path) -> None:
+        """Switch the active model weights dynamically."""
+        logger.info(f"Switching active YOLOv8 model to: {new_model_path}")
+        self._model_path = new_model_path
+        self._is_loaded = False
+        self.load_model()
+        self.warmup()
+
     def warmup(self) -> None:
         """Run a dummy forward pass to pre-compile the PyTorch model graph.
 
@@ -453,6 +461,7 @@ class PredictionService:
                 source=np.array(image),
                 conf=self._confidence,
                 verbose=False,      # suppress ultralytics stdout spam
+                half=True,          # Enable FP16 half precision for performance
             )
         except Exception as exc:
             raise PredictionError(reason=exc) from exc
@@ -513,3 +522,111 @@ class PredictionService:
 # ─────────────────────────────────────────────────────────────────────────────
 
 prediction_service: PredictionService = PredictionService()
+
+# ── Background Inference Thread Pool & Status Tracker ──────────────────────────
+from enum import Enum
+import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor
+import uuid
+
+class InferenceJobStatus(str, Enum):
+    QUEUED = "queued"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+@dataclass
+class InferenceJob:
+    job_id: str
+    status: InferenceJobStatus
+    progress: float  # 0.0 to 1.0
+    future: concurrent.futures.Future
+    created_at: float
+    started_at: float | None = None
+    completed_at: float | None = None
+    error: str | None = None
+
+class PredictionExecutor:
+    """Manages concurrent YOLOv8 inference requests via a background ThreadPoolExecutor."""
+
+    def __init__(self, max_workers: int = 2) -> None:
+        self.executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="yolo-worker")
+        self.jobs: dict[str, InferenceJob] = {}
+
+    def submit(self, image: Image.Image) -> InferenceJob:
+        """Submit a PIL image for background defect detection inference."""
+        job_id = str(uuid.uuid4())
+        created_at = time.time()
+        
+        def task_wrapper() -> PredictionResult:
+            job = self.jobs.get(job_id)
+            if job:
+                job.status = InferenceJobStatus.PROCESSING
+                job.progress = 0.5
+                job.started_at = time.time()
+            try:
+                # Execute inference using singleton
+                res = prediction_service.predict(image)
+                if job:
+                    job.status = InferenceJobStatus.COMPLETED
+                    job.progress = 1.0
+                    job.completed_at = time.time()
+                return res
+            except Exception as e:
+                logger.error(f"Background prediction failed for job {job_id}: {e}", exc_info=True)
+                if job:
+                    job.status = InferenceJobStatus.FAILED
+                    job.progress = 1.0
+                    job.error = str(e)
+                    job.completed_at = time.time()
+                raise e
+
+        future = self.executor.submit(task_wrapper)
+        job = InferenceJob(
+            job_id=job_id,
+            status=InferenceJobStatus.QUEUED,
+            progress=0.0,
+            future=future,
+            created_at=created_at
+        )
+        self.jobs[job_id] = job
+        
+        # Clean up history to prevent memory leak
+        self._cleanup_jobs()
+        return job
+
+    def cancel_job(self, job_id: str) -> bool:
+        """Cancel a pending job in the queue."""
+        job = self.jobs.get(job_id)
+        if not job:
+            return False
+        cancelled = job.future.cancel()
+        if cancelled:
+            job.status = InferenceJobStatus.CANCELLED
+            job.progress = 1.0
+        return cancelled
+
+    def get_job_status(self, job_id: str) -> dict | None:
+        """Query the current state and progress metadata of a background job."""
+        job = self.jobs.get(job_id)
+        if not job:
+            return None
+        return {
+            "job_id": job.job_id,
+            "status": job.status.value,
+            "progress": job.progress,
+            "created_at": job.created_at,
+            "started_at": job.started_at,
+            "completed_at": job.completed_at,
+            "error": job.error
+        }
+
+    def _cleanup_jobs(self) -> None:
+        """Purge records older than 1 hour."""
+        now = time.time()
+        cutoff = now - 3600
+        self.jobs = {jid: j for jid, j in self.jobs.items() if j.created_at > cutoff}
+
+prediction_executor: PredictionExecutor = PredictionExecutor(max_workers=2)
+

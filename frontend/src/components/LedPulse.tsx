@@ -7,6 +7,7 @@
 interface LedPulseProps {
   color?: 'primary' | 'error' | 'secondary' | 'tertiary'
   size?: 'sm' | 'md'
+  active?: boolean
 }
 
 const colorMap = {
@@ -21,7 +22,8 @@ const sizeMap = {
   md: 'w-2 h-2',
 }
 
-export default function LedPulse({ color = 'primary', size = 'md' }: LedPulseProps) {
+export default function LedPulse({ color = 'primary', size = 'md', active = true }: LedPulseProps) {
+  if (!active) return null
   return (
     <div className={`rounded-full ${colorMap[color]} ${sizeMap[size]} animate-led-pulse flex-shrink-0`} />
   )

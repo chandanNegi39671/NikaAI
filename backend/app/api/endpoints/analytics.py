@@ -11,10 +11,12 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.services.analytics import get_dashboard_analytics
 from app.services.report import generate_inspection_pdf, generate_csv_export
+from app.core.auth import PermissionChecker
 
 router = APIRouter(
     prefix="/api/v1/analytics",
     tags=["Analytics & Reports"],
+    dependencies=[Depends(PermissionChecker("analytics:read"))]
 )
 
 @router.get("/dashboard")
