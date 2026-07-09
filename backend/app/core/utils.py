@@ -23,10 +23,10 @@ from PIL import Image, UnidentifiedImageError
 
 from app.exceptions import InvalidImageError
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Image helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def image_from_bytes(data: bytes) -> Image.Image:
     """Decode raw bytes into a PIL RGB Image.

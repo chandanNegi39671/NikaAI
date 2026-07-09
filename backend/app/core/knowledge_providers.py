@@ -68,7 +68,7 @@ class KeywordKnowledgeProvider(KnowledgeProvider):
     """
 
     def retrieve_context(self, query: str, db: Session) -> str:
-        from app.core.repository import knowledge_document_repo, factory_memory_repo
+        from app.core.repository import factory_memory_repo, knowledge_document_repo
 
         context_parts: list[str] = []
 
@@ -84,7 +84,8 @@ class KeywordKnowledgeProvider(KnowledgeProvider):
         # 2. Enrich with factory memory entries
         memories = factory_memory_repo.get_multi(db, limit=3)
         relevant_memories = [
-            m for m in memories
+            m
+            for m in memories
             if query.lower() in (m.defect_class or "").lower()
             or query.lower() in (m.description or "").lower()
         ]

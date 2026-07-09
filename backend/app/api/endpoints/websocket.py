@@ -4,9 +4,11 @@ backend/app/api/endpoints/websocket.py
 WebSocket endpoint for real-time live inspections, notifications, and alerts.
 """
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from typing import List, Dict
 import json
+from typing import Dict, List
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -16,9 +18,10 @@ router = APIRouter(
     tags=["Real-time WebSockets"],
 )
 
+
 class ConnectionManager:
     """Manages active WebSocket connections and broadcasts events."""
-    
+
     def __init__(self):
         # Maps machine_id -> list of WebSockets subscribed
         self.active_subscriptions: Dict[str, List[WebSocket]] = {}
@@ -28,7 +31,9 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-        logger.info(f"WebSocket connected. Total active connections: {len(self.active_connections)}")
+        logger.info(
+            f"WebSocket connected. Total active connections: {len(self.active_connections)}"
+        )
 
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
@@ -39,7 +44,9 @@ class ConnectionManager:
                 websockets.remove(websocket)
                 if not websockets:
                     del self.active_subscriptions[machine_id]
-        logger.info(f"WebSocket disconnected. Total active connections: {len(self.active_connections)}")
+        logger.info(
+            f"WebSocket disconnected. Total active connections: {len(self.active_connections)}"
+        )
 
     async def subscribe(self, websocket: WebSocket, machine_id: str):
         """Subscribe a connection to events from a specific factory machine."""
@@ -48,10 +55,9 @@ class ConnectionManager:
         if websocket not in self.active_subscriptions[machine_id]:
             self.active_subscriptions[machine_id].append(websocket)
         logger.info(f"WebSocket subscribed to machine '{machine_id}'")
-        await websocket.send_json({
-            "event": "subscription_success",
-            "machine_id": machine_id
-        })
+        await websocket.send_json(
+            {"event": "subscription_success", "machine_id": machine_id}
+        )
 
     async def broadcast_to_machine(self, machine_id: str, data: dict):
         """Send message only to connections subscribed to a specific machine."""
@@ -63,7 +69,7 @@ class ConnectionManager:
             except Exception as exc:
                 logger.warning(f"Failed to send to socket: {exc}")
                 dead_sockets.append(ws)
-        
+
         for dead in dead_sockets:
             self.disconnect(dead)
 
@@ -76,12 +82,13 @@ class ConnectionManager:
             except Exception as exc:
                 logger.warning(f"Failed to send global broadcast: {exc}")
                 dead_sockets.append(ws)
-                
+
         for dead in dead_sockets:
             self.disconnect(dead)
 
 
 manager = ConnectionManager()
+
 
 @router.websocket("/inspections")
 async def websocket_endpoint(websocket: WebSocket):
@@ -93,7 +100,7 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 data = json.loads(data_str)
                 action = data.get("action")
-                
+
                 if action == "subscribe":
                     machine_id = data.get("machine_id")
                     if machine_id:
@@ -101,7 +108,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 elif action == "ping":
                     await websocket.send_json({"event": "pong"})
             except json.JSONDecodeError:
-                await websocket.send_json({"event": "error", "message": "Invalid JSON format"})
+                await websocket.send_json(
+                    {"event": "error", "message": "Invalid JSON format"}
+                )
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception as exc:

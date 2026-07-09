@@ -15,11 +15,10 @@ Covers:
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models.db_models import Inspection, Detection, Machine
+from app.models.db_models import Inspection
 
 
 class TestInspectionsList:
@@ -51,9 +50,7 @@ class TestInspectionsList:
             db_session.add(ins)
         db_session.flush()
 
-        resp = client.get(
-            "/api/v1/inspections?limit=2", headers=admin_headers
-        )
+        resp = client.get("/api/v1/inspections?limit=2", headers=admin_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, dict)
@@ -94,9 +91,7 @@ class TestInspectionRetrieve:
         # Endpoint may exist as 200 or might use different URL pattern
         assert resp.status_code in (200, 404)
 
-    def test_get_nonexistent_inspection(
-        self, client: TestClient, admin_headers: dict
-    ):
+    def test_get_nonexistent_inspection(self, client: TestClient, admin_headers: dict):
         resp = client.get(
             "/api/v1/inspections/00000000-0000-0000-0000-000000000000",
             headers=admin_headers,
@@ -123,20 +118,14 @@ class TestInspectionRetrieve:
 class TestEdgeSync:
     """POST /api/v1/sync/upload — batch edge-sync endpoint."""
 
-    def test_sync_empty_payload(
-        self, client: TestClient, operator_headers: dict
-    ):
+    def test_sync_empty_payload(self, client: TestClient, operator_headers: dict):
         """Empty payload should succeed with 0 synced records."""
-        resp = client.post(
-            "/api/v1/sync/upload", json=[], headers=operator_headers
-        )
+        resp = client.post("/api/v1/sync/upload", json=[], headers=operator_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert data["synced_records_count"] == 0
 
-    def test_sync_single_record(
-        self, client: TestClient, operator_headers: dict
-    ):
+    def test_sync_single_record(self, client: TestClient, operator_headers: dict):
         """A valid single-record payload must be accepted and persisted."""
         payload = [
             {
@@ -201,11 +190,7 @@ class TestEdgeSync:
         resp = client.post("/api/v1/sync/upload", json=[])
         assert resp.status_code == 401
 
-    def test_sync_viewer_rejected(
-        self, client: TestClient, viewer_headers: dict
-    ):
+    def test_sync_viewer_rejected(self, client: TestClient, viewer_headers: dict):
         """Viewer role does not have inspection:write — must be 403."""
-        resp = client.post(
-            "/api/v1/sync/upload", json=[], headers=viewer_headers
-        )
+        resp = client.post("/api/v1/sync/upload", json=[], headers=viewer_headers)
         assert resp.status_code == 403

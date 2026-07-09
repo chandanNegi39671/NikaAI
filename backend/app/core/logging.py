@@ -25,16 +25,16 @@ from __future__ import annotations
 
 import json
 import logging
-from logging.handlers import RotatingFileHandler
 import sys
-from pathlib import Path
 from datetime import datetime, timezone
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 from typing import Any
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # JSON Formatter
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class JsonFormatter(logging.Formatter):
     """Formats log records as single-line JSON objects.
@@ -62,9 +62,9 @@ class JsonFormatter(logging.Formatter):
 
         # Attach any extra fields the caller passed via extra={}
         # Standard LogRecord attributes are excluded to avoid noise.
-        _STDLIB_KEYS = frozenset(logging.LogRecord(
-            "", 0, "", 0, "", (), None
-        ).__dict__.keys()) | {"message", "asctime"}
+        _STDLIB_KEYS = frozenset(
+            logging.LogRecord("", 0, "", 0, "", (), None).__dict__.keys()
+        ) | {"message", "asctime"}
 
         for key, value in record.__dict__.items():
             if key not in _STDLIB_KEYS:
@@ -77,15 +77,14 @@ class JsonFormatter(logging.Formatter):
 # Text Formatter (development)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_TEXT_FORMAT = (
-    "%(asctime)s  %(levelname)-8s  %(name)s  %(message)s"
-)
+_TEXT_FORMAT = "%(asctime)s  %(levelname)-8s  %(name)s  %(message)s"
 _DATE_FORMAT = "%H:%M:%S"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Public API
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def setup_logging(level: str = "INFO", fmt: str = "json") -> None:
     """Configure the root logger for the application.
@@ -99,11 +98,11 @@ def setup_logging(level: str = "INFO", fmt: str = "json") -> None:
     numeric_level = getattr(logging, level.upper(), logging.INFO)
 
     handlers = []
-    
+
     # 1. Console Handler
     console_handler = logging.StreamHandler(sys.stdout)
     handlers.append(console_handler)
-    
+
     # 2. Rotating File Handler
     log_dir = Path("logs")
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -111,7 +110,7 @@ def setup_logging(level: str = "INFO", fmt: str = "json") -> None:
         filename=log_dir / "nika_ai.log",
         maxBytes=10 * 1024 * 1024,  # 10 MB
         backupCount=5,
-        encoding="utf-8"
+        encoding="utf-8",
     )
     handlers.append(file_handler)
 

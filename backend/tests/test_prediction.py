@@ -17,28 +17,25 @@ NOTE: Actual YOLOv8 inference tests are skipped unless the model file is
 
 from __future__ import annotations
 
-import io
-import time
-import uuid
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
-from unittest.mock import MagicMock, patch
 
+from app.core.config import settings
+from app.exceptions import InvalidImageError, ModelNotLoadedError
 from app.services.prediction import (
     BoundingBox,
     Detection,
+    InferenceJobStatus,
+    PredictionExecutor,
     PredictionResult,
     PredictionService,
-    PredictionExecutor,
-    InferenceJobStatus,
 )
-from app.exceptions import InvalidImageError, ModelNotLoadedError
-from app.core.config import settings
-
 
 # ── BoundingBox tests ─────────────────────────────────────────────────────────
+
 
 class TestBoundingBox:
     def test_width_calculation(self):
@@ -67,6 +64,7 @@ class TestBoundingBox:
 
 # ── Detection tests ───────────────────────────────────────────────────────────
 
+
 class TestDetection:
     def test_to_dict_structure(self):
         d = Detection(
@@ -89,6 +87,7 @@ class TestDetection:
 
 
 # ── PredictionResult tests ────────────────────────────────────────────────────
+
 
 class TestPredictionResult:
     def _make_result(self, n: int) -> PredictionResult:
@@ -132,6 +131,7 @@ class TestPredictionResult:
 
 # ── PredictionService unit tests (model mocked) ───────────────────────────────
 
+
 class TestPredictionServiceValidation:
     """Test PredictionService validation without loading the actual model."""
 
@@ -173,10 +173,13 @@ class TestPredictionServiceValidation:
 
 # ── API endpoint tests (model mocked via patch) ───────────────────────────────
 
+
 class TestPredictEndpoint:
     """Test the /api/v1/predict HTTP endpoint with a mocked prediction service."""
 
-    def test_predict_unauthenticated(self, client: TestClient, sample_jpeg_bytes: bytes):
+    def test_predict_unauthenticated(
+        self, client: TestClient, sample_jpeg_bytes: bytes
+    ):
         resp = client.post(
             "/api/v1/predict",
             files={"image": ("test.jpg", sample_jpeg_bytes, "image/jpeg")},
@@ -187,9 +190,7 @@ class TestPredictEndpoint:
         resp = client.post("/api/v1/predict", headers=operator_headers)
         assert resp.status_code == 422
 
-    def test_predict_wrong_mime_type(
-        self, client: TestClient, operator_headers: dict
-    ):
+    def test_predict_wrong_mime_type(self, client: TestClient, operator_headers: dict):
         """Uploading a plain text file disguised as an image should be rejected."""
         fake_file = b"this is not an image"
         resp = client.post(
@@ -235,22 +236,29 @@ class TestPredictEndpoint:
 
 # ── PredictionExecutor job lifecycle ─────────────────────────────────────────
 
+
 class TestPredictionExecutor:
     def test_submit_returns_job(self):
         executor = PredictionExecutor(max_workers=1)
         img = Image.new("RGB", (100, 100))
 
-        with patch.object(
-            executor,
-            "_cleanup_jobs",
-            return_value=None,
-        ), patch(
-            "app.services.prediction.prediction_service.predict",
-            return_value=PredictionResult([], 10.0, 100, 100),
+        with (
+            patch.object(
+                executor,
+                "_cleanup_jobs",
+                return_value=None,
+            ),
+            patch(
+                "app.services.prediction.prediction_service.predict",
+                return_value=PredictionResult([], 10.0, 100, 100),
+            ),
         ):
             job = executor.submit(img)
             assert job.job_id is not None
-            assert job.status in (InferenceJobStatus.QUEUED, InferenceJobStatus.PROCESSING)
+            assert job.status in (
+                InferenceJobStatus.QUEUED,
+                InferenceJobStatus.PROCESSING,
+            )
 
     def test_get_nonexistent_job_returns_none(self):
         executor = PredictionExecutor(max_workers=1)

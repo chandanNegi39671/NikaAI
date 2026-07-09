@@ -5,17 +5,20 @@ Endpoints for managing factory machines.
 """
 
 from __future__ import annotations
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+
+from app.core.auth import PermissionChecker
 from app.core.database import get_db
 from app.models.db_models import Machine
-from app.core.auth import PermissionChecker
 
 router = APIRouter(
     prefix="/api/v1/machines",
     tags=["Machines"],
-    dependencies=[Depends(PermissionChecker("inspection:read"))]
+    dependencies=[Depends(PermissionChecker("inspection:read"))],
 )
+
 
 @router.get("")
 def list_machines(db: Session = Depends(get_db)):
@@ -27,6 +30,7 @@ def list_machines(db: Session = Depends(get_db)):
             "name": m.name,
             "model_number": m.model_number,
             "status": m.status,
-            "location": m.location
-        } for m in machines
+            "location": m.location,
+        }
+        for m in machines
     ]

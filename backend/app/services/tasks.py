@@ -4,18 +4,21 @@ backend/app/services/tasks.py
 Celery asynchronous task definitions.
 """
 
-from celery.signals import worker_process_init
-from app.core.celery_app import celery_app
-from app.core.logging import get_logger
-from app.services.prediction import prediction_service
-from app.services.gemma import generate_explanation
-from app.core.database import SessionLocal
-from app.models.db_models import Inspection, AIExplanation
 import base64
 import io
+
+from celery.signals import worker_process_init
 from PIL import Image
 
+from app.core.celery_app import celery_app
+from app.core.database import SessionLocal
+from app.core.logging import get_logger
+from app.models.db_models import AIExplanation, Inspection
+from app.services.gemma import generate_explanation
+from app.services.prediction import prediction_service
+
 logger = get_logger(__name__)
+
 
 # Initialize model inside worker process
 @worker_process_init.connect
@@ -27,21 +30,24 @@ def init_worker(**kwargs):
     except Exception as exc:
         logger.error(f"Failed to load YOLO model in Celery worker: {exc}")
 
+
 @celery_app.task(name="app.services.tasks.run_yolo_inference")
-def run_yolo_inference(image_base64: str, session_id: str, machine_id: str, worker_id: str, shift_id: str) -> dict:
+def run_yolo_inference(
+    image_base64: str, session_id: str, machine_id: str, worker_id: str, shift_id: str
+) -> dict:
     """Run background YOLOv8 model inference on base64-encoded image."""
     logger.info("Executing YOLO inference task...")
     try:
         # Decode image
         img_bytes = base64.b64decode(image_base64)
         pil_image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-        
+
         # Validate dimensions
         prediction_service.validate_image(pil_image, len(img_bytes))
-        
+
         # Run prediction
         result = prediction_service.predict(pil_image)
-        
+
         # Persist results in DB inside the worker
         db = SessionLocal()
         try:
@@ -53,12 +59,13 @@ def run_yolo_inference(image_base64: str, session_id: str, machine_id: str, work
             pass
         finally:
             db.close()
-            
+
         return result.to_dict()
-        
+
     except Exception as exc:
         logger.error(f"YOLO task failed: {exc}", exc_info=True)
         return {"success": False, "error": str(exc)}
+
 
 @celery_app.task(name="app.services.tasks.generate_gemma_explanation")
 def generate_gemma_explanation(inspection_id: str) -> bool:
@@ -70,13 +77,21 @@ def generate_gemma_explanation(inspection_id: str) -> bool:
         if not inspection:
             logger.error(f"Inspection {inspection_id} not found.")
             return False
-            
-        explanation_json = generate_explanation(inspection.defect_type, inspection.confidence_score)
-        
+
+        explanation_json = generate_explanation(
+            inspection.defect_type, inspection.confidence_score
+        )
+
         # Save or update AIExplanation
-        exp = db.query(AIExplanation).filter(AIExplanation.inspection_id == inspection_id).first()
+        exp = (
+            db.query(AIExplanation)
+            .filter(AIExplanation.inspection_id == inspection_id)
+            .first()
+        )
         if not exp:
-            exp = AIExplanation(inspection_id=inspection_id, explanation_json=explanation_json)
+            exp = AIExplanation(
+                inspection_id=inspection_id, explanation_json=explanation_json
+            )
             db.add(exp)
         else:
             exp.explanation_json = explanation_json
@@ -96,50 +111,59 @@ def generate_scheduled_report(report_type: str = "daily") -> str:
     db = SessionLocal()
     try:
         # Fetch inspections in the last 24h/7d/30d
-        import pandas as pd
         from datetime import datetime, timedelta
         from pathlib import Path
-        
-        limit_date = datetime.now() - timedelta(days=1 if report_type == "daily" else 7 if report_type == "weekly" else 30)
-        inspections = db.query(Inspection).filter(
-            Inspection.created_at >= limit_date,
-            Inspection.is_deleted == False
-        ).all()
-        
+
+        import pandas as pd
+
+        limit_date = datetime.now() - timedelta(
+            days=1 if report_type == "daily" else 7 if report_type == "weekly" else 30
+        )
+        inspections = (
+            db.query(Inspection)
+            .filter(Inspection.created_at >= limit_date, Inspection.is_deleted == False)
+            .all()
+        )
+
         if not inspections:
             logger.info("No new inspections to include in report.")
             return "No data"
-            
-        data = [{
-            "ID": ins.id,
-            "Timestamp": ins.created_at,
-            "Status": ins.status,
-            "Confidence": ins.confidence,
-            "Latency (ms)": ins.inference_time_ms
-        } for ins in inspections]
-        
+
+        data = [
+            {
+                "ID": ins.id,
+                "Timestamp": ins.created_at,
+                "Status": ins.status,
+                "Confidence": ins.confidence,
+                "Latency (ms)": ins.inference_time_ms,
+            }
+            for ins in inspections
+        ]
+
         df = pd.DataFrame(data)
-        
+
         # Save to static reports directory
         static_dir = Path(__file__).resolve().parent.parent.parent.parent / "static"
         reports_dir = static_dir / "reports"
         reports_dir.mkdir(parents=True, exist_ok=True)
-        
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         csv_filename = f"{report_type}_report_{timestamp}.csv"
         xlsx_filename = f"{report_type}_report_{timestamp}.xlsx"
-        
+
         csv_path = reports_dir / csv_filename
         xlsx_path = reports_dir / xlsx_filename
-        
+
         df.to_csv(csv_path, index=False)
         df.to_excel(xlsx_path, index=False)
-        
-        logger.info(f"Report files generated successfully: {csv_filename}, {xlsx_filename}")
-        
+
+        logger.info(
+            f"Report files generated successfully: {csv_filename}, {xlsx_filename}"
+        )
+
         # In a real environment, we would also trigger NotificationService.send_email
         # to send these reports to supervisors
-        
+
         return str(csv_path)
     except Exception as exc:
         logger.error(f"Scheduled report generation failed: {exc}", exc_info=True)
@@ -154,9 +178,9 @@ def run_system_backup() -> str:
     logger.info("Executing scheduled system backup...")
     try:
         import tarfile
-        import shutil
         from datetime import datetime
         from pathlib import Path
+
         from app.core.config import settings
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -188,7 +212,9 @@ def run_system_backup() -> str:
             else:
                 # Mock Postgres dump for standalone execution
                 dummy_db_dump = backup_dir / f"nika_db_{timestamp}.sql"
-                dummy_db_dump.write_text("-- Nika AI Database Backup Schema Placeholder")
+                dummy_db_dump.write_text(
+                    "-- Nika AI Database Backup Schema Placeholder"
+                )
                 tar.add(dummy_db_dump, arcname="database.sql")
                 dummy_db_dump.unlink()
 

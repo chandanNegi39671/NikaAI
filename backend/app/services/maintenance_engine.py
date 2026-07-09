@@ -82,36 +82,39 @@ RECOMMENDATIONS: dict[str, str] = {
 _VIBRATION_DEFECT_CLASSES: frozenset[str] = frozenset({"dent", "scratch"})
 
 # Defect classes that suggest thermal/stress issues
-_THERMAL_DEFECT_CLASSES: frozenset[str] = frozenset({"surface_crack", "burn_mark", "delamination"})
+_THERMAL_DEFECT_CLASSES: frozenset[str] = frozenset(
+    {"surface_crack", "burn_mark", "delamination"}
+)
 
 # Risk thresholds (defect_rate)
 _THRESHOLDS = {
-    "critical":  0.50,   # ≥ 50% FAIL → critical
-    "high":      0.25,   # ≥ 25% FAIL → high
-    "moderate":  0.10,   # ≥ 10% FAIL → moderate
+    "critical": 0.50,  # ≥ 50% FAIL → critical
+    "high": 0.25,  # ≥ 25% FAIL → high
+    "moderate": 0.10,  # ≥ 10% FAIL → moderate
     # below 10% → low
 }
 
 # RUL thresholds in days
 _RUL = {
-    "critical":  5,
-    "high":     14,
+    "critical": 5,
+    "high": 14,
     "moderate": 45,
-    "low":     180,
+    "low": 180,
 }
 
 # Priority mapping
 _PRIORITY = {
-    "critical":  "urgent",
-    "high":      "high",
-    "moderate":  "medium",
-    "low":       "low",
+    "critical": "urgent",
+    "high": "high",
+    "moderate": "medium",
+    "low": "low",
 }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Health Score Computation
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _compute_health_score(defect_rate: float, recent_fail_rate: float) -> float:
     """Compute a composite 0–100 health score.
@@ -167,7 +170,10 @@ def _select_recommendation(
     if risk_level == "moderate":
         if class_set & frozenset({"scratch"}):
             return "inspect_conveyor", RECOMMENDATIONS["inspect_conveyor"]
-        return "increase_inspection_frequency", RECOMMENDATIONS["increase_inspection_frequency"]
+        return (
+            "increase_inspection_frequency",
+            RECOMMENDATIONS["increase_inspection_frequency"],
+        )
 
     # low risk
     return "continue_monitoring", RECOMMENDATIONS["continue_monitoring"]
@@ -182,6 +188,7 @@ def _compute_trend(db: Session, machine_id: str, current_health: float) -> str:
         "stable"     — change within ±5 points or no history exists
     """
     from app.core.repository import maintenance_prediction_repo
+
     previous = maintenance_prediction_repo.get_latest_for_machine(db, machine_id)
     if previous is None:
         return "stable"
@@ -196,6 +203,7 @@ def _compute_trend(db: Session, machine_id: str, current_health: float) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # Public API
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def run_maintenance_engine(
     db: Session,
@@ -227,10 +235,14 @@ def run_maintenance_engine(
     Raises:
         ValueError: If machine_id does not exist in the database.
     """
-    machine: Machine | None = db.query(Machine).filter(
-        Machine.id == machine_id,
-        Machine.is_deleted == False,
-    ).first()
+    machine: Machine | None = (
+        db.query(Machine)
+        .filter(
+            Machine.id == machine_id,
+            Machine.is_deleted == False,
+        )
+        .first()
+    )
 
     if not machine:
         raise ValueError(f"Machine '{machine_id}' not found.")
@@ -250,7 +262,10 @@ def run_maintenance_engine(
 
     if total == 0:
         # Nominal default — no data available yet
-        rec_code, rec_text = "continue_monitoring", RECOMMENDATIONS["continue_monitoring"]
+        rec_code, rec_text = (
+            "continue_monitoring",
+            RECOMMENDATIONS["continue_monitoring"],
+        )
         result = _build_result(
             machine=machine,
             health_score=100.0,

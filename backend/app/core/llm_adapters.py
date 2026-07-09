@@ -25,7 +25,6 @@ Extension point:
 
 from __future__ import annotations
 
-import json
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -35,6 +34,7 @@ logger = get_logger(__name__)
 
 
 # ── Response dataclass ────────────────────────────────────────────────────────
+
 
 class LLMResponse:
     """Normalized response object returned by every LLMAdapter."""
@@ -63,6 +63,7 @@ class LLMResponse:
 
 
 # ── Abstract base ─────────────────────────────────────────────────────────────
+
 
 class LLMAdapter(ABC):
     """Abstract base class for all LLM backend adapters.
@@ -97,6 +98,7 @@ class LLMAdapter(ABC):
 
 
 # ── RuleBasedAdapter (Sprint 8 default) ────────────────────────────────────────
+
 
 class RuleBasedAdapter(LLMAdapter):
     """Deterministic rule-based response generation.
@@ -184,7 +186,9 @@ class RuleBasedAdapter(LLMAdapter):
                 "How can I assist you on the production line today?"
             )
 
-        logger.info(f"RuleBasedAdapter generated response for prompt: '{prompt[:60]}...'")
+        logger.info(
+            f"RuleBasedAdapter generated response for prompt: '{prompt[:60]}...'"
+        )
         return LLMResponse(
             answer=answer,
             sources=sources[:3],
@@ -210,6 +214,7 @@ class RuleBasedAdapter(LLMAdapter):
 
 
 # ── Placeholder adapters (Sprint 9+ extension points) ─────────────────────────
+
 
 class OllamaAdapter(LLMAdapter):
     """Adapter for local Ollama inference server (AMD ROCm compatible).

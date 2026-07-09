@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
 from app.core.redis import cache_get, cache_set
-from app.models.db_models import Inspection, Detection, Machine
+from app.models.db_models import Detection, Inspection, Machine
 
 logger = get_logger(__name__)
 
@@ -42,10 +42,13 @@ _CACHE_TTL = 300  # 5 minutes
 # Internal helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _day_range(date: datetime.date) -> tuple[datetime, datetime]:
     """Return UTC start/end datetime for a calendar date."""
     start = datetime(date.year, date.month, date.day, 0, 0, 0, tzinfo=timezone.utc)
-    end = datetime(date.year, date.month, date.day, 23, 59, 59, 999999, tzinfo=timezone.utc)
+    end = datetime(
+        date.year, date.month, date.day, 23, 59, 59, 999999, tzinfo=timezone.utc
+    )
     return start, end
 
 
@@ -68,6 +71,7 @@ def _safe_round(v: float | None, decimals: int = 2) -> float:
 # ─────────────────────────────────────────────────────────────────────────────
 # Daily Trend
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def get_daily_trend(db: Session, days: int = 30) -> list[dict[str, Any]]:
     """Return per-day inspection metrics for the last N days.
@@ -96,42 +100,60 @@ def get_daily_trend(db: Session, days: int = 30) -> list[dict[str, Any]]:
         day = today - timedelta(days=i)
         start, end = _day_range(day)
 
-        total: int = db.query(Inspection).filter(
-            Inspection.created_at >= start,
-            Inspection.created_at <= end,
-            Inspection.is_deleted == False,
-        ).count()
+        total: int = (
+            db.query(Inspection)
+            .filter(
+                Inspection.created_at >= start,
+                Inspection.created_at <= end,
+                Inspection.is_deleted == False,
+            )
+            .count()
+        )
 
-        failed: int = db.query(Inspection).filter(
-            Inspection.created_at >= start,
-            Inspection.created_at <= end,
-            Inspection.status == "FAIL",
-            Inspection.is_deleted == False,
-        ).count()
+        failed: int = (
+            db.query(Inspection)
+            .filter(
+                Inspection.created_at >= start,
+                Inspection.created_at <= end,
+                Inspection.status == "FAIL",
+                Inspection.is_deleted == False,
+            )
+            .count()
+        )
 
-        avg_conf = db.query(func.avg(Inspection.confidence)).filter(
-            Inspection.created_at >= start,
-            Inspection.created_at <= end,
-            Inspection.is_deleted == False,
-        ).scalar()
+        avg_conf = (
+            db.query(func.avg(Inspection.confidence))
+            .filter(
+                Inspection.created_at >= start,
+                Inspection.created_at <= end,
+                Inspection.is_deleted == False,
+            )
+            .scalar()
+        )
 
-        avg_lat = db.query(func.avg(Inspection.latency_ms)).filter(
-            Inspection.created_at >= start,
-            Inspection.created_at <= end,
-            Inspection.is_deleted == False,
-        ).scalar()
+        avg_lat = (
+            db.query(func.avg(Inspection.latency_ms))
+            .filter(
+                Inspection.created_at >= start,
+                Inspection.created_at <= end,
+                Inspection.is_deleted == False,
+            )
+            .scalar()
+        )
 
         pass_rate = round(((total - failed) / total * 100), 2) if total > 0 else 100.0
 
-        result.append({
-            "date": day.strftime("%b %d"),
-            "iso_date": day.isoformat(),
-            "total_inspections": total,
-            "failed_inspections": failed,
-            "pass_rate": pass_rate,
-            "avg_confidence": _safe_round(avg_conf),
-            "avg_latency_ms": _safe_round(avg_lat, 1),
-        })
+        result.append(
+            {
+                "date": day.strftime("%b %d"),
+                "iso_date": day.isoformat(),
+                "total_inspections": total,
+                "failed_inspections": failed,
+                "pass_rate": pass_rate,
+                "avg_confidence": _safe_round(avg_conf),
+                "avg_latency_ms": _safe_round(avg_lat, 1),
+            }
+        )
 
     cache_set(cache_key, json.dumps(result), ttl=_CACHE_TTL)
     return result
@@ -140,6 +162,7 @@ def get_daily_trend(db: Session, days: int = 30) -> list[dict[str, Any]]:
 # ─────────────────────────────────────────────────────────────────────────────
 # Weekly Trend
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def get_weekly_trend(db: Session, weeks: int = 12) -> list[dict[str, Any]]:
     """Return per-week aggregated metrics for the last N weeks.
@@ -165,39 +188,70 @@ def get_weekly_trend(db: Session, weeks: int = 12) -> list[dict[str, Any]]:
         week_end = today - timedelta(days=w * 7)
         week_start = week_end - timedelta(days=6)
 
-        start = datetime(week_start.year, week_start.month, week_start.day, 0, 0, 0, tzinfo=timezone.utc)
-        end = datetime(week_end.year, week_end.month, week_end.day, 23, 59, 59, 999999, tzinfo=timezone.utc)
+        start = datetime(
+            week_start.year,
+            week_start.month,
+            week_start.day,
+            0,
+            0,
+            0,
+            tzinfo=timezone.utc,
+        )
+        end = datetime(
+            week_end.year,
+            week_end.month,
+            week_end.day,
+            23,
+            59,
+            59,
+            999999,
+            tzinfo=timezone.utc,
+        )
 
-        total: int = db.query(Inspection).filter(
-            Inspection.created_at >= start,
-            Inspection.created_at <= end,
-            Inspection.is_deleted == False,
-        ).count()
+        total: int = (
+            db.query(Inspection)
+            .filter(
+                Inspection.created_at >= start,
+                Inspection.created_at <= end,
+                Inspection.is_deleted == False,
+            )
+            .count()
+        )
 
-        failed: int = db.query(Inspection).filter(
-            Inspection.created_at >= start,
-            Inspection.created_at <= end,
-            Inspection.status == "FAIL",
-            Inspection.is_deleted == False,
-        ).count()
+        failed: int = (
+            db.query(Inspection)
+            .filter(
+                Inspection.created_at >= start,
+                Inspection.created_at <= end,
+                Inspection.status == "FAIL",
+                Inspection.is_deleted == False,
+            )
+            .count()
+        )
 
-        avg_conf = db.query(func.avg(Inspection.confidence)).filter(
-            Inspection.created_at >= start,
-            Inspection.created_at <= end,
-            Inspection.is_deleted == False,
-        ).scalar()
+        avg_conf = (
+            db.query(func.avg(Inspection.confidence))
+            .filter(
+                Inspection.created_at >= start,
+                Inspection.created_at <= end,
+                Inspection.is_deleted == False,
+            )
+            .scalar()
+        )
 
         pass_rate = round(((total - failed) / total * 100), 2) if total > 0 else 100.0
 
-        result.append({
-            "week": _week_label(week_start),
-            "week_start": week_start.isoformat(),
-            "week_end": week_end.isoformat(),
-            "total_inspections": total,
-            "failed_inspections": failed,
-            "pass_rate": pass_rate,
-            "avg_confidence": _safe_round(avg_conf),
-        })
+        result.append(
+            {
+                "week": _week_label(week_start),
+                "week_start": week_start.isoformat(),
+                "week_end": week_end.isoformat(),
+                "total_inspections": total,
+                "failed_inspections": failed,
+                "pass_rate": pass_rate,
+                "avg_confidence": _safe_round(avg_conf),
+            }
+        )
 
     cache_set(cache_key, json.dumps(result), ttl=_CACHE_TTL)
     return result
@@ -206,6 +260,7 @@ def get_weekly_trend(db: Session, weeks: int = 12) -> list[dict[str, Any]]:
 # ─────────────────────────────────────────────────────────────────────────────
 # Monthly Trend
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def get_monthly_trend(db: Session, months: int = 6) -> list[dict[str, Any]]:
     """Return per-month aggregated metrics for the last N months.
@@ -234,41 +289,61 @@ def get_monthly_trend(db: Session, months: int = 6) -> list[dict[str, Any]]:
             target_month += 12
             target_year -= 1
 
-        month_start = datetime(target_year, target_month, 1, 0, 0, 0, tzinfo=timezone.utc)
+        month_start = datetime(
+            target_year, target_month, 1, 0, 0, 0, tzinfo=timezone.utc
+        )
         if target_month == 12:
-            month_end = datetime(target_year + 1, 1, 1, tzinfo=timezone.utc) - timedelta(microseconds=1)
+            month_end = datetime(
+                target_year + 1, 1, 1, tzinfo=timezone.utc
+            ) - timedelta(microseconds=1)
         else:
-            month_end = datetime(target_year, target_month + 1, 1, tzinfo=timezone.utc) - timedelta(microseconds=1)
+            month_end = datetime(
+                target_year, target_month + 1, 1, tzinfo=timezone.utc
+            ) - timedelta(microseconds=1)
 
-        total: int = db.query(Inspection).filter(
-            Inspection.created_at >= month_start,
-            Inspection.created_at <= month_end,
-            Inspection.is_deleted == False,
-        ).count()
+        total: int = (
+            db.query(Inspection)
+            .filter(
+                Inspection.created_at >= month_start,
+                Inspection.created_at <= month_end,
+                Inspection.is_deleted == False,
+            )
+            .count()
+        )
 
-        failed: int = db.query(Inspection).filter(
-            Inspection.created_at >= month_start,
-            Inspection.created_at <= month_end,
-            Inspection.status == "FAIL",
-            Inspection.is_deleted == False,
-        ).count()
+        failed: int = (
+            db.query(Inspection)
+            .filter(
+                Inspection.created_at >= month_start,
+                Inspection.created_at <= month_end,
+                Inspection.status == "FAIL",
+                Inspection.is_deleted == False,
+            )
+            .count()
+        )
 
-        avg_conf = db.query(func.avg(Inspection.confidence)).filter(
-            Inspection.created_at >= month_start,
-            Inspection.created_at <= month_end,
-            Inspection.is_deleted == False,
-        ).scalar()
+        avg_conf = (
+            db.query(func.avg(Inspection.confidence))
+            .filter(
+                Inspection.created_at >= month_start,
+                Inspection.created_at <= month_end,
+                Inspection.is_deleted == False,
+            )
+            .scalar()
+        )
 
         pass_rate = round(((total - failed) / total * 100), 2) if total > 0 else 100.0
 
-        result.append({
-            "month": _month_label(month_start.date()),
-            "month_start": month_start.date().isoformat(),
-            "total_inspections": total,
-            "failed_inspections": failed,
-            "pass_rate": pass_rate,
-            "avg_confidence": _safe_round(avg_conf),
-        })
+        result.append(
+            {
+                "month": _month_label(month_start.date()),
+                "month_start": month_start.date().isoformat(),
+                "total_inspections": total,
+                "failed_inspections": failed,
+                "pass_rate": pass_rate,
+                "avg_confidence": _safe_round(avg_conf),
+            }
+        )
 
     cache_set(cache_key, json.dumps(result), ttl=_CACHE_TTL)
     return result
@@ -277,6 +352,7 @@ def get_monthly_trend(db: Session, months: int = 6) -> list[dict[str, Any]]:
 # ─────────────────────────────────────────────────────────────────────────────
 # Defect Type Trend
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def get_defect_type_trend(db: Session, days: int = 30) -> list[dict[str, Any]]:
     """Return defect class frequency trend over the last N days.
@@ -327,13 +403,15 @@ def get_defect_type_trend(db: Session, days: int = 30) -> list[dict[str, Any]]:
         else:
             severity = "low"
 
-        result.append({
-            "defect_class": r.defect_class,
-            "defect_name": r.defect_class.replace("_", " ").title(),
-            "count": r.count,
-            "percentage": pct,
-            "severity": severity,
-        })
+        result.append(
+            {
+                "defect_class": r.defect_class,
+                "defect_name": r.defect_class.replace("_", " ").title(),
+                "count": r.count,
+                "percentage": pct,
+                "severity": severity,
+            }
+        )
 
     cache_set(cache_key, json.dumps(result), ttl=_CACHE_TTL)
     return result
@@ -342,6 +420,7 @@ def get_defect_type_trend(db: Session, days: int = 30) -> list[dict[str, Any]]:
 # ─────────────────────────────────────────────────────────────────────────────
 # Machine Trend
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def get_machine_failure_trend(db: Session, days: int = 30) -> list[dict[str, Any]]:
     """Return per-machine failure rate trend for the last N days.
@@ -368,18 +447,26 @@ def get_machine_failure_trend(db: Session, days: int = 30) -> list[dict[str, Any
 
     result: list[dict[str, Any]] = []
     for m in machines:
-        total = db.query(Inspection).filter(
-            Inspection.machine_id == m.id,
-            Inspection.created_at >= cutoff,
-            Inspection.is_deleted == False,
-        ).count()
+        total = (
+            db.query(Inspection)
+            .filter(
+                Inspection.machine_id == m.id,
+                Inspection.created_at >= cutoff,
+                Inspection.is_deleted == False,
+            )
+            .count()
+        )
 
-        failed = db.query(Inspection).filter(
-            Inspection.machine_id == m.id,
-            Inspection.created_at >= cutoff,
-            Inspection.status == "FAIL",
-            Inspection.is_deleted == False,
-        ).count()
+        failed = (
+            db.query(Inspection)
+            .filter(
+                Inspection.machine_id == m.id,
+                Inspection.created_at >= cutoff,
+                Inspection.status == "FAIL",
+                Inspection.is_deleted == False,
+            )
+            .count()
+        )
 
         defect_rate = round(failed / total, 4) if total > 0 else 0.0
         pct = round(defect_rate * 100, 2)
@@ -393,16 +480,18 @@ def get_machine_failure_trend(db: Session, days: int = 30) -> list[dict[str, Any
         else:
             status = "normal"
 
-        result.append({
-            "machine_id": m.id,
-            "machine_name": m.name,
-            "machine_location": m.location or "Unknown",
-            "total_inspections": total,
-            "failed_inspections": failed,
-            "defect_rate": defect_rate,
-            "defect_rate_pct": pct,
-            "status": status,
-        })
+        result.append(
+            {
+                "machine_id": m.id,
+                "machine_name": m.name,
+                "machine_location": m.location or "Unknown",
+                "total_inspections": total,
+                "failed_inspections": failed,
+                "defect_rate": defect_rate,
+                "defect_rate_pct": pct,
+                "status": status,
+            }
+        )
 
     result.sort(key=lambda x: x["defect_rate"], reverse=True)
     cache_set(cache_key, json.dumps(result), ttl=_CACHE_TTL)
@@ -412,6 +501,7 @@ def get_machine_failure_trend(db: Session, days: int = 30) -> list[dict[str, Any
 # ─────────────────────────────────────────────────────────────────────────────
 # Fleet Trend Summary
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def get_trend_summary(db: Session, days: int = 30) -> dict[str, Any]:
     """Return a high-level trend summary for the fleet.
@@ -438,42 +528,66 @@ def get_trend_summary(db: Session, days: int = 30) -> dict[str, Any]:
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
-    total = db.query(Inspection).filter(
-        Inspection.created_at >= cutoff,
-        Inspection.is_deleted == False,
-    ).count()
+    total = (
+        db.query(Inspection)
+        .filter(
+            Inspection.created_at >= cutoff,
+            Inspection.is_deleted == False,
+        )
+        .count()
+    )
 
-    failed = db.query(Inspection).filter(
-        Inspection.created_at >= cutoff,
-        Inspection.status == "FAIL",
-        Inspection.is_deleted == False,
-    ).count()
+    failed = (
+        db.query(Inspection)
+        .filter(
+            Inspection.created_at >= cutoff,
+            Inspection.status == "FAIL",
+            Inspection.is_deleted == False,
+        )
+        .count()
+    )
 
-    avg_conf = db.query(func.avg(Inspection.confidence)).filter(
-        Inspection.created_at >= cutoff,
-        Inspection.is_deleted == False,
-    ).scalar()
+    avg_conf = (
+        db.query(func.avg(Inspection.confidence))
+        .filter(
+            Inspection.created_at >= cutoff,
+            Inspection.is_deleted == False,
+        )
+        .scalar()
+    )
 
-    avg_lat = db.query(func.avg(Inspection.latency_ms)).filter(
-        Inspection.created_at >= cutoff,
-        Inspection.is_deleted == False,
-    ).scalar()
+    avg_lat = (
+        db.query(func.avg(Inspection.latency_ms))
+        .filter(
+            Inspection.created_at >= cutoff,
+            Inspection.is_deleted == False,
+        )
+        .scalar()
+    )
 
     # Machines at risk
     machines = db.query(Machine).filter(Machine.is_deleted == False).all()
     at_risk = 0
     for m in machines:
-        m_total = db.query(Inspection).filter(
-            Inspection.machine_id == m.id,
-            Inspection.created_at >= cutoff,
-            Inspection.is_deleted == False,
-        ).count()
-        m_failed = db.query(Inspection).filter(
-            Inspection.machine_id == m.id,
-            Inspection.created_at >= cutoff,
-            Inspection.status == "FAIL",
-            Inspection.is_deleted == False,
-        ).count()
+        m_total = (
+            db.query(Inspection)
+            .filter(
+                Inspection.machine_id == m.id,
+                Inspection.created_at >= cutoff,
+                Inspection.is_deleted == False,
+            )
+            .count()
+        )
+        m_failed = (
+            db.query(Inspection)
+            .filter(
+                Inspection.machine_id == m.id,
+                Inspection.created_at >= cutoff,
+                Inspection.status == "FAIL",
+                Inspection.is_deleted == False,
+            )
+            .count()
+        )
         if m_total > 0 and (m_failed / m_total) >= 0.25:
             at_risk += 1
 
@@ -503,7 +617,9 @@ def get_trend_summary(db: Session, days: int = 30) -> dict[str, Any]:
         "machines_at_risk": at_risk,
         "total_machines": len(machines),
         "top_defect_class": top_defect[0] if top_defect else None,
-        "top_defect_name": top_defect[0].replace("_", " ").title() if top_defect else "None",
+        "top_defect_name": (
+            top_defect[0].replace("_", " ").title() if top_defect else "None"
+        ),
         "top_defect_count": int(top_defect[1]) if top_defect else 0,
     }
 

@@ -20,11 +20,12 @@ are fixed and cannot regress:
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.core.auth import create_token
-from datetime import timedelta
 
 
 class TestSecurityHeaders:
@@ -67,8 +68,9 @@ class TestSecurityHeaders:
             if parts:
                 directives[parts[0]] = parts[1:]
         if "script-src" in directives:
-            assert not any("unsafe-inline" in x for x in directives["script-src"]), "CSP: script-src must not contain unsafe-inline"
-
+            assert not any(
+                "unsafe-inline" in x for x in directives["script-src"]
+            ), "CSP: script-src must not contain unsafe-inline"
 
     @pytest.mark.parametrize("path", _ENDPOINTS)
     def test_frame_ancestors_deny(self, client: TestClient, path: str):
@@ -102,8 +104,8 @@ class TestAuthSecurity:
 
     def test_refresh_token_cannot_access_api(self, client: TestClient, admin_user):
         """A refresh token must NOT be accepted as an access token for API calls."""
-        from app.core.config import settings
         from app.core.auth import create_token
+
         refresh_tok = create_token(
             subject=admin_user.username,
             role=admin_user.role,

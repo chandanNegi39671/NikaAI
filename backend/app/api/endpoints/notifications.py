@@ -18,7 +18,11 @@ from sqlalchemy.orm import Session
 from app.core.auth import PermissionChecker, get_current_user
 from app.core.database import get_db
 from app.models.db_models import Notification, User
-from app.services.notifications import NotificationService, VALID_CHANNELS, VALID_PRIORITIES
+from app.services.notifications import (
+    VALID_CHANNELS,
+    VALID_PRIORITIES,
+    NotificationService,
+)
 
 router = APIRouter(
     prefix="/api/v1/notifications",
@@ -67,34 +71,51 @@ def list_notifications(
         q = q.filter(Notification.status == status_filter)
     if priority:
         if priority not in VALID_PRIORITIES:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"priority must be one of {VALID_PRIORITIES}")
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"priority must be one of {VALID_PRIORITIES}",
+            )
         q = q.filter(Notification.priority == priority)
     if channel:
         if channel not in VALID_CHANNELS:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"channel must be one of {VALID_CHANNELS}")
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, f"channel must be one of {VALID_CHANNELS}"
+            )
         q = q.filter(Notification.channel == channel)
     if machine_id:
         q = q.filter(Notification.machine_id == machine_id)
     if unacknowledged_only:
-        q = q.filter(Notification.requires_ack == True, Notification.acknowledged_at.is_(None))
+        q = q.filter(
+            Notification.requires_ack == True, Notification.acknowledged_at.is_(None)
+        )
 
     total = q.count()
     items = q.order_by(Notification.created_at.desc()).offset(offset).limit(limit).all()
-    return {"total": total, "limit": limit, "offset": offset, "items": [_serialize(n) for n in items]}
+    return {
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "items": [_serialize(n) for n in items],
+    }
 
 
 @router.get("/{notification_id}")
 def get_notification(notification_id: str, db: Session = Depends(get_db)):
     """Fetch a single notification by id."""
-    record = db.query(Notification).filter(
-        Notification.id == notification_id, Notification.is_deleted == False
-    ).first()
+    record = (
+        db.query(Notification)
+        .filter(Notification.id == notification_id, Notification.is_deleted == False)
+        .first()
+    )
     if not record:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Notification not found")
     return _serialize(record)
 
 
-@router.post("/{notification_id}/acknowledge", dependencies=[Depends(PermissionChecker("inspection:write"))])
+@router.post(
+    "/{notification_id}/acknowledge",
+    dependencies=[Depends(PermissionChecker("inspection:write"))],
+)
 def acknowledge_notification(
     notification_id: str,
     db: Session = Depends(get_db),

@@ -9,9 +9,7 @@ FactoryMemory, Report, AIExplanation, AnalyticsSnapshot, AuditLog.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
-from datetime import timezone
-from typing import List, Optional
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     Boolean,
@@ -22,9 +20,8 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    func,
 )
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+from sqlalchemy.orm import relationship
 
 from app.core.database import Base
 
@@ -36,6 +33,7 @@ def generate_uuid() -> str:
 
 class SoftDeleteMixin:
     """Mixin to support soft deletes on models."""
+
     is_deleted = Column(Boolean, default=False, nullable=False, index=True)
 
     def delete(self):
@@ -44,7 +42,13 @@ class SoftDeleteMixin:
 
 class TimestampMixin:
     """Mixin to automatically track created and updated times."""
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        index=True,
+    )
     updated_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
@@ -60,7 +64,9 @@ class User(Base, SoftDeleteMixin, TimestampMixin):
     username = Column(String(100), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    role = Column(String(50), default="operator", nullable=False)  # operator, admin, manager
+    role = Column(
+        String(50), default="operator", nullable=False
+    )  # operator, admin, manager
     factory_id = Column(String(36), nullable=True, index=True)
 
     audit_logs = relationship("AuditLog", back_populates="user")
@@ -75,7 +81,9 @@ class Machine(Base, SoftDeleteMixin, TimestampMixin):
     id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
     name = Column(String(100), nullable=False, index=True)
     model_number = Column(String(100), nullable=True)
-    status = Column(String(50), default="operational", nullable=False)  # operational, maintenance, offline
+    status = Column(
+        String(50), default="operational", nullable=False
+    )  # operational, maintenance, offline
     location = Column(String(100), nullable=True)
     factory_id = Column(String(36), nullable=True, index=True)
 
@@ -106,7 +114,7 @@ class Shift(Base, SoftDeleteMixin, TimestampMixin):
     id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
     name = Column(String(50), nullable=False, index=True)  # Day, Evening, Night
     start_time = Column(String(50), nullable=False)  # e.g., "06:00:00"
-    end_time = Column(String(50), nullable=False)    # e.g., "14:00:00"
+    end_time = Column(String(50), nullable=False)  # e.g., "14:00:00"
     worker_id = Column(String(36), ForeignKey("workers.id"), nullable=True)
 
     worker = relationship("Worker", back_populates="shifts")
@@ -120,7 +128,9 @@ class Session(Base, SoftDeleteMixin, TimestampMixin):
     __tablename__ = "sessions"
 
     id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
-    session_id = Column(String(50), unique=True, nullable=False, index=True)  # e.g., "#NK-4821-AX"
+    session_id = Column(
+        String(50), unique=True, nullable=False, index=True
+    )  # e.g., "#NK-4821-AX"
     status = Column(String(50), default="active", nullable=False)  # active, completed
 
     inspections = relationship("Inspection", back_populates="session")
@@ -133,26 +143,43 @@ class Inspection(Base, SoftDeleteMixin, TimestampMixin):
     __tablename__ = "inspections"
 
     id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
-    session_id = Column(String(36), ForeignKey("sessions.id"), nullable=True, index=True)
-    machine_id = Column(String(36), ForeignKey("machines.id"), nullable=True, index=True)
+    session_id = Column(
+        String(36), ForeignKey("sessions.id"), nullable=True, index=True
+    )
+    machine_id = Column(
+        String(36), ForeignKey("machines.id"), nullable=True, index=True
+    )
     worker_id = Column(String(36), ForeignKey("workers.id"), nullable=True, index=True)
     shift_id = Column(String(36), ForeignKey("shifts.id"), nullable=True, index=True)
-    
+
     image_path = Column(String(512), nullable=True)
     original_image_name = Column(String(255), nullable=True)
-    status = Column(String(20), default="PASS", nullable=False, index=True)  # PASS, FAIL
+    status = Column(
+        String(20), default="PASS", nullable=False, index=True
+    )  # PASS, FAIL
     latency_ms = Column(Float, default=0.0)
     inference_time_ms = Column(Float, default=0.0)
-    confidence = Column(Float, default=0.0)  # average confidence of defects, or top detection confidence
+    confidence = Column(
+        Float, default=0.0
+    )  # average confidence of defects, or top detection confidence
 
     session = relationship("Session", back_populates="inspections")
     machine = relationship("Machine", back_populates="inspections")
     worker = relationship("Worker", back_populates="inspections")
     shift = relationship("Shift", back_populates="inspections")
-    
-    detections = relationship("Detection", back_populates="inspection", cascade="all, delete-orphan")
-    explanation = relationship("AIExplanation", back_populates="inspection", uselist=False, cascade="all, delete-orphan")
-    reports = relationship("Report", back_populates="inspection", cascade="all, delete-orphan")
+
+    detections = relationship(
+        "Detection", back_populates="inspection", cascade="all, delete-orphan"
+    )
+    explanation = relationship(
+        "AIExplanation",
+        back_populates="inspection",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    reports = relationship(
+        "Report", back_populates="inspection", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Inspection id={self.id} status={self.status} confidence={self.confidence}>"
@@ -162,7 +189,9 @@ class Detection(Base, SoftDeleteMixin, TimestampMixin):
     __tablename__ = "detections"
 
     id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
-    inspection_id = Column(String(36), ForeignKey("inspections.id"), nullable=False, index=True)
+    inspection_id = Column(
+        String(36), ForeignKey("inspections.id"), nullable=False, index=True
+    )
     defect_class = Column(String(100), nullable=False, index=True)
     confidence = Column(Float, nullable=False)
     x1 = Column(Float, nullable=False)
@@ -182,7 +211,9 @@ class FactoryMemory(Base, SoftDeleteMixin, TimestampMixin):
     id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
     defect_class = Column(String(100), nullable=False, index=True)
     description = Column(Text, nullable=True)
-    recurring_defect_pattern = Column(Text, nullable=True)  # descriptions of machines/shifts/defect characteristics
+    recurring_defect_pattern = Column(
+        Text, nullable=True
+    )  # descriptions of machines/shifts/defect characteristics
     recommended_action = Column(Text, nullable=True)
 
     def __repr__(self) -> str:
@@ -193,7 +224,9 @@ class Report(Base, SoftDeleteMixin, TimestampMixin):
     __tablename__ = "reports"
 
     id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
-    inspection_id = Column(String(36), ForeignKey("inspections.id"), nullable=False, index=True)
+    inspection_id = Column(
+        String(36), ForeignKey("inspections.id"), nullable=False, index=True
+    )
     file_path = Column(String(512), nullable=False)
     format = Column(String(20), nullable=False, index=True)  # PDF, CSV, JSON
 
@@ -207,7 +240,13 @@ class AIExplanation(Base, SoftDeleteMixin, TimestampMixin):
     __tablename__ = "ai_explanations"
 
     id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
-    inspection_id = Column(String(36), ForeignKey("inspections.id"), nullable=False, index=True, unique=True)
+    inspection_id = Column(
+        String(36),
+        ForeignKey("inspections.id"),
+        nullable=False,
+        index=True,
+        unique=True,
+    )
     gemma_explanation = Column(Text, nullable=True)
     trust_score = Column(Float, default=1.0)
     explanation_json = Column(Text, nullable=True)  # parsed key value components
@@ -240,8 +279,10 @@ class AuditLog(Base, SoftDeleteMixin, TimestampMixin):
 
     id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
-    action = Column(String(100), nullable=False, index=True)  # e.g., "delete_inspection", "run_predict"
-    entity_type = Column(String(50), nullable=True)           # e.g., "inspection", "session"
+    action = Column(
+        String(100), nullable=False, index=True
+    )  # e.g., "delete_inspection", "run_predict"
+    entity_type = Column(String(50), nullable=True)  # e.g., "inspection", "session"
     entity_id = Column(String(36), nullable=True)
     description = Column(Text, nullable=True)
     ip_address = Column(String(45), nullable=True)
@@ -260,6 +301,7 @@ class AuditLog(Base, SoftDeleteMixin, TimestampMixin):
 # ─────────────────────────────────────────────────────────────────────────────
 # MaintenancePrediction — Sprint 7: AI Manufacturing Intelligence
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class MaintenancePrediction(Base, SoftDeleteMixin, TimestampMixin):
     """Persisted result of the predictive maintenance engine for one machine at one point in time.
@@ -286,7 +328,9 @@ class MaintenancePrediction(Base, SoftDeleteMixin, TimestampMixin):
     __tablename__ = "maintenance_predictions"
 
     id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
-    machine_id = Column(String(36), ForeignKey("machines.id"), nullable=True, index=True)
+    machine_id = Column(
+        String(36), ForeignKey("machines.id"), nullable=True, index=True
+    )
 
     # Core health metrics
     health_score = Column(Float, nullable=False, default=100.0, index=True)
@@ -307,7 +351,12 @@ class MaintenancePrediction(Base, SoftDeleteMixin, TimestampMixin):
     failed_inspections = Column(Integer, nullable=False, default=0)
 
     # Timestamp this prediction was generated (separate from created_at which is DB insert time)
-    computed_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    computed_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
+    )
 
     # Relationship
     machine = relationship("Machine", foreign_keys=[machine_id])
@@ -323,6 +372,7 @@ class MaintenancePrediction(Base, SoftDeleteMixin, TimestampMixin):
 # Sprint 8: AI Manufacturing Intelligence
 # ModelVersion, KnowledgeDocument, Conversation, ConversationMessage
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class ModelVersion(Base, SoftDeleteMixin, TimestampMixin):
     """Persisted metadata for each versioned YOLOv8 model checkpoint.
@@ -363,7 +413,9 @@ class ModelVersion(Base, SoftDeleteMixin, TimestampMixin):
     notes = Column(Text, nullable=True)
 
     def __repr__(self) -> str:
-        return f"<ModelVersion name={self.version_name} status={self.deployment_status}>"
+        return (
+            f"<ModelVersion name={self.version_name} status={self.deployment_status}>"
+        )
 
 
 class KnowledgeDocument(Base, SoftDeleteMixin, TimestampMixin):
@@ -450,6 +502,7 @@ class ConversationMessage(Base, TimestampMixin):
 # Sprint 7: Notification — omnichannel alert dispatch and acknowledgement
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class Notification(Base, SoftDeleteMixin, TimestampMixin):
     """Persisted record of a single notification dispatch attempt.
 
@@ -459,22 +512,37 @@ class Notification(Base, SoftDeleteMixin, TimestampMixin):
     what makes "history" and "acknowledgement" real features instead of
     log lines that vanish on container restart.
     """
+
     __tablename__ = "notifications"
 
     id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
 
     # What triggered this notification
-    event_type = Column(String(50), nullable=False, index=True)   # e.g. "critical_defect", "machine_offline"
-    priority = Column(String(20), nullable=False, default="normal", index=True)  # low | normal | high | critical
+    event_type = Column(
+        String(50), nullable=False, index=True
+    )  # e.g. "critical_defect", "machine_offline"
+    priority = Column(
+        String(20), nullable=False, default="normal", index=True
+    )  # low | normal | high | critical
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
-    machine_id = Column(String(36), ForeignKey("machines.id"), nullable=True, index=True)
-    metadata_json = Column(Text, nullable=True)  # arbitrary structured context, JSON-encoded
+    machine_id = Column(
+        String(36), ForeignKey("machines.id"), nullable=True, index=True
+    )
+    metadata_json = Column(
+        Text, nullable=True
+    )  # arbitrary structured context, JSON-encoded
 
     # Delivery
-    channel = Column(String(20), nullable=False, index=True)  # email | slack | teams | discord | sms | webhook
-    recipient = Column(String(255), nullable=True)  # address / channel id / phone number, channel-dependent
-    status = Column(String(20), nullable=False, default="pending", index=True)  # pending | sent | failed
+    channel = Column(
+        String(20), nullable=False, index=True
+    )  # email | slack | teams | discord | sms | webhook
+    recipient = Column(
+        String(255), nullable=True
+    )  # address / channel id / phone number, channel-dependent
+    status = Column(
+        String(20), nullable=False, default="pending", index=True
+    )  # pending | sent | failed
     attempts = Column(Integer, default=0, nullable=False)
     last_error = Column(Text, nullable=True)
     sent_at = Column(DateTime(timezone=True), nullable=True)

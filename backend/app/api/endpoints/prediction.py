@@ -37,30 +37,32 @@ MIME type allow-list (enforced before Pillow decodes):
 # from __future__ import annotations
 
 import io
-from typing import Annotated
 import uuid
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status, Depends, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.core.logging import get_logger
-from app.core.database import get_db
-from app.models.db_models import Inspection, Detection as DbDetection, AIExplanation, Session as DbSession, Worker, Machine, Shift
-from app.services.gemma import generate_explanation
-from app.exceptions import InvalidImageError, ModelNotLoadedError, PredictionError
-from app.services.prediction import PredictionResult, prediction_service
 from app.core.auth import PermissionChecker
+from app.core.database import get_db
 from app.core.limiter import limiter
+from app.core.logging import get_logger
+from app.exceptions import InvalidImageError, ModelNotLoadedError, PredictionError
+from app.models.db_models import AIExplanation, Inspection, Machine, Shift, Worker
+from app.models.db_models import Detection as DbDetection
+from app.models.db_models import Session as DbSession
+from app.services.gemma import generate_explanation
+from app.services.prediction import PredictionResult, prediction_service
 
 logger = get_logger(__name__)
 
 router = APIRouter(
     prefix="/api/v1",
     tags=["Prediction"],
-    dependencies=[Depends(PermissionChecker("inspection:write"))]
+    dependencies=[Depends(PermissionChecker("inspection:write"))],
 )
 
 # ── Allowed MIME types at the HTTP boundary (before Pillow opens the file) ───
@@ -73,6 +75,7 @@ _ALLOWED_CONTENT_TYPES: frozenset[str] = frozenset(
 # Pydantic Response Models
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class BoundingBoxSchema(BaseModel):
     """Pixel-space bounding box coordinates at the original image resolution.
 
@@ -82,7 +85,9 @@ class BoundingBoxSchema(BaseModel):
     x1: float = Field(description="Left edge x-coordinate (pixels).", examples=[120.5])
     y1: float = Field(description="Top edge y-coordinate (pixels).", examples=[80.0])
     x2: float = Field(description="Right edge x-coordinate (pixels).", examples=[340.2])
-    y2: float = Field(description="Bottom edge y-coordinate (pixels).", examples=[260.7])
+    y2: float = Field(
+        description="Bottom edge y-coordinate (pixels).", examples=[260.7]
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -117,7 +122,7 @@ class DetectionSchema(BaseModel):
     )
 
     model_config = {
-        "populate_by_name": True,   # allow both alias and Python name
+        "populate_by_name": True,  # allow both alias and Python name
         "json_schema_extra": {
             "example": {
                 "class": "surface_crack",
@@ -134,9 +139,7 @@ class ImageDimensionsSchema(BaseModel):
     width: int = Field(description="Image width in pixels.", examples=[1920])
     height: int = Field(description="Image height in pixels.", examples=[1080])
 
-    model_config = {
-        "json_schema_extra": {"example": {"width": 1920, "height": 1080}}
-    }
+    model_config = {"json_schema_extra": {"example": {"width": 1920, "height": 1080}}}
 
 
 class PredictResponse(BaseModel):
@@ -198,6 +201,7 @@ class PredictResponse(BaseModel):
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _validate_content_type(upload: UploadFile) -> None:
     """Reject uploads with an unsupported MIME type before reading bytes.
 
@@ -216,7 +220,7 @@ def _validate_content_type(upload: UploadFile) -> None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Missing Content-Type for uploaded file. "
-                   "Expected one of: image/jpeg, image/png.",
+            "Expected one of: image/jpeg, image/png.",
         )
 
     if upload.content_type.lower() not in _ALLOWED_CONTENT_TYPES:
@@ -265,7 +269,7 @@ def _decode_pil_image(raw: bytes, filename: str) -> Image.Image:
     """
     try:
         image = Image.open(io.BytesIO(raw))
-        image.load()   # force full decode; catches truncated files
+        image.load()  # force full decode; catches truncated files
         return image
     except UnidentifiedImageError:
         raise HTTPException(
@@ -286,7 +290,9 @@ def _decode_pil_image(raw: bytes, filename: str) -> Image.Image:
         )
 
 
-def _build_response(result: PredictionResult, inspection_id: str | None = None) -> PredictResponse:
+def _build_response(
+    result: PredictionResult, inspection_id: str | None = None
+) -> PredictResponse:
     """Map a ``PredictionResult`` dataclass to the ``PredictResponse`` schema.
 
     This function exists solely to keep the route handler clean and to make
@@ -301,7 +307,7 @@ def _build_response(result: PredictionResult, inspection_id: str | None = None) 
     """
     detection_schemas = [
         DetectionSchema(
-            defect_class=d.defect,              # maps Detection.defect → "class"
+            defect_class=d.defect,  # maps Detection.defect → "class"
             confidence=round(d.confidence, 4),
             bounding_box=BoundingBoxSchema(
                 x1=round(d.bounding_box.x1, 2),
@@ -383,8 +389,7 @@ async def predict(
         UploadFile,
         File(
             description=(
-                "Image file to analyse. "
-                "Accepted: JPEG, JPG, PNG. Max size: 10 MB."
+                "Image file to analyse. " "Accepted: JPEG, JPG, PNG. Max size: 10 MB."
             )
         ),
     ],
@@ -447,40 +452,47 @@ async def predict(
     # ── Prediction Caching & Inference (Celery with fallback) ─────────────────
     import hashlib
     import json
+
     from app.core.redis import cache_get, cache_set
-    
+
     image_hash = hashlib.sha256(raw).hexdigest()
     cache_key = f"prediction:hash:{image_hash}"
     cached_res = cache_get(cache_key)
-    
+
     result = None
     if cached_res:
         logger.info(f"Prediction cache hit for hash: {image_hash}")
         try:
             from app.core.metrics import CACHE_HITS
+
             CACHE_HITS.labels(cache_type="prediction").inc()
         except Exception:
             pass
         try:
             res_dict = json.loads(cached_res)
             # Reconstruct PredictionResult object
-            from app.services.prediction import PredictionResult, Detection, BoundingBox
+            from app.services.prediction import BoundingBox, Detection, PredictionResult
+
             detections = []
             for d in res_dict.get("detections", []):
                 bbox = d.get("bounding_box", {})
-                detections.append(Detection(
-                    defect=d.get("defect"),
-                    confidence=d.get("confidence"),
-                    bounding_box=BoundingBox(
-                        x1=bbox.get("x1"), y1=bbox.get("y1"),
-                        x2=bbox.get("x2"), y2=bbox.get("y2")
+                detections.append(
+                    Detection(
+                        defect=d.get("defect"),
+                        confidence=d.get("confidence"),
+                        bounding_box=BoundingBox(
+                            x1=bbox.get("x1"),
+                            y1=bbox.get("y1"),
+                            x2=bbox.get("x2"),
+                            y2=bbox.get("y2"),
+                        ),
                     )
-                ))
+                )
             result = PredictionResult(
                 detections=detections,
                 inference_time_ms=res_dict.get("inference_time_ms", 0.0),
                 image_width=res_dict.get("image_width", 640),
-                image_height=res_dict.get("image_height", 640)
+                image_height=res_dict.get("image_height", 640),
             )
         except Exception as exc:
             logger.warning(f"Failed to parse cached prediction: {exc}")
@@ -488,57 +500,76 @@ async def predict(
     if not result:
         try:
             from app.core.metrics import CACHE_MISSES
+
             CACHE_MISSES.labels(cache_type="prediction").inc()
         except Exception:
             pass
         # Call Celery task for inference
         try:
             import base64
+
             from app.services.tasks import run_yolo_inference
+
             image_base64 = base64.b64encode(raw).decode("utf-8")
-            
+
             task_res = run_yolo_inference.delay(
                 image_base64,
                 session_id or "",
                 machine_id or "",
                 worker_id or "",
-                shift_id or ""
+                shift_id or "",
             ).get(timeout=10.0)
-            
+
             if task_res and task_res.get("success") != False:
-                from app.services.prediction import PredictionResult, Detection, BoundingBox
+                from app.services.prediction import (
+                    BoundingBox,
+                    Detection,
+                    PredictionResult,
+                )
+
                 detections = []
                 for d in task_res.get("detections", []):
                     bbox = d.get("bounding_box", {})
-                    detections.append(Detection(
-                        defect=d.get("defect"),
-                        confidence=d.get("confidence"),
-                        bounding_box=BoundingBox(
-                            x1=bbox.get("x1"), y1=bbox.get("y1"),
-                            x2=bbox.get("x2"), y2=bbox.get("y2")
+                    detections.append(
+                        Detection(
+                            defect=d.get("defect"),
+                            confidence=d.get("confidence"),
+                            bounding_box=BoundingBox(
+                                x1=bbox.get("x1"),
+                                y1=bbox.get("y1"),
+                                x2=bbox.get("x2"),
+                                y2=bbox.get("y2"),
+                            ),
                         )
-                    ))
+                    )
                 result = PredictionResult(
                     detections=detections,
                     inference_time_ms=task_res.get("inference_time_ms", 0.0),
                     image_width=task_res.get("image_width", 640),
-                    image_height=task_res.get("image_height", 640)
+                    image_height=task_res.get("image_height", 640),
                 )
         except Exception as celery_exc:
-            logger.warning(f"Celery inference failed or timed out, falling back to local service: {celery_exc}")
+            logger.warning(
+                f"Celery inference failed or timed out, falling back to local service: {celery_exc}"
+            )
 
     if not result:
         # Fallback to local prediction service
         try:
             result = prediction_service.predict(pil_image)
         except ModelNotLoadedError as exc:
-            logger.error("Model not loaded when predict() was called.", extra={"error": exc.message})
+            logger.error(
+                "Model not loaded when predict() was called.",
+                extra={"error": exc.message},
+            )
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Model is not loaded. The service is not ready for inference.",
             )
         except PredictionError as exc:
-            logger.error("Inference failed.", extra={"filename": filename, "error": exc.message})
+            logger.error(
+                "Inference failed.", extra={"filename": filename, "error": exc.message}
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Inference failed: {exc.reason}",
@@ -546,13 +577,14 @@ async def predict(
 
     # Save to Redis cache
     try:
-        cache_set(cache_key, json.dumps(result.to_dict()), ttl=86400) # cache for 1 day
+        cache_set(cache_key, json.dumps(result.to_dict()), ttl=86400)  # cache for 1 day
     except Exception as exc:
         logger.warning(f"Failed to cache prediction: {exc}")
 
     # Record YOLO latency metrics in Prometheus
     try:
-        from app.core.metrics import YOLO_INFERENCE_TIME, YOLO_FPS
+        from app.core.metrics import YOLO_FPS, YOLO_INFERENCE_TIME
+
         YOLO_INFERENCE_TIME.observe(result.inference_time_ms / 1000.0)
         if result.inference_time_ms > 0:
             YOLO_FPS.set(1000.0 / result.inference_time_ms)
@@ -562,9 +594,10 @@ async def predict(
     # ── Gate 6: Save Image using Storage Provider Adapter ─────────────────────
     ext = Path(filename).suffix or ".jpg"
     unique_filename = f"{uuid.uuid4()}{ext}"
-    
+
     try:
         from app.core.storage import storage_provider
+
         db_image_path = storage_provider.save(raw, unique_filename)
     except Exception as exc:
         logger.error(f"Failed to save image using storage provider: {exc}")
@@ -574,7 +607,9 @@ async def predict(
     try:
         # Resolve/Create Session
         if session_id:
-            db_session_row = db.query(DbSession).filter(DbSession.session_id == session_id).first()
+            db_session_row = (
+                db.query(DbSession).filter(DbSession.session_id == session_id).first()
+            )
             if not db_session_row:
                 db_session_row = DbSession(session_id=session_id, status="active")
                 db.add(db_session_row)
@@ -582,7 +617,10 @@ async def predict(
                 db.refresh(db_session_row)
         else:
             import random
-            generated_id = f"#NK-{random.randint(1000, 9999)}-{uuid.uuid4().hex[:2].upper()}"
+
+            generated_id = (
+                f"#NK-{random.randint(1000, 9999)}-{uuid.uuid4().hex[:2].upper()}"
+            )
             db_session_row = DbSession(session_id=generated_id, status="active")
             db.add(db_session_row)
             db.commit()
@@ -611,7 +649,9 @@ async def predict(
         status_str = "PASS" if is_pass else "FAIL"
         avg_confidence = 0.0
         if result.has_defects:
-            avg_confidence = sum(d.confidence for d in result.detections) / len(result.detections)
+            avg_confidence = sum(d.confidence for d in result.detections) / len(
+                result.detections
+            )
 
         # Save Inspection
         db_inspection = Inspection(
@@ -624,7 +664,7 @@ async def predict(
             status=status_str,
             latency_ms=result.inference_time_ms,
             inference_time_ms=result.inference_time_ms,
-            confidence=avg_confidence
+            confidence=avg_confidence,
         )
         db.add(db_inspection)
         db.commit()
@@ -639,12 +679,13 @@ async def predict(
                 x1=det.bounding_box.x1,
                 y1=det.bounding_box.y1,
                 x2=det.bounding_box.x2,
-                y2=det.bounding_box.y2
+                y2=det.bounding_box.y2,
             )
             db.add(db_det)
 
         # Save AI Explanation (conditionally based on feature flag)
         from app.services.features import is_feature_enabled
+
         if result.has_defects:
             top_defect = result.detections[0]
             if is_feature_enabled("gemma_explanations"):
@@ -653,20 +694,21 @@ async def predict(
                     inspection_id=db_inspection.id,
                     gemma_explanation=explanation_res.explanation_text,
                     trust_score=explanation_res.trust_score,
-                    explanation_json=explanation_res.explanation_json
+                    explanation_json=explanation_res.explanation_json,
                 )
                 db.add(db_explanation)
-            
+
             # Publish prediction completed event to the Event Bus
             try:
                 from app.core.events import event_bus
+
                 machine_name = db_machine.name if db_machine else "Unknown Machine"
                 event_payload = {
                     "inspection_id": db_inspection.id,
                     "status": status_str,
                     "defect_type": top_defect.defect,
                     "confidence": top_defect.confidence,
-                    "machine_name": machine_name
+                    "machine_name": machine_name,
                 }
                 event_bus.publish("prediction_finished", event_payload)
             except Exception as ev_exc:
@@ -678,18 +720,22 @@ async def predict(
                     inspection_id=db_inspection.id,
                     gemma_explanation="No defects detected. Part is within nominal quality tolerance.",
                     trust_score=1.0,
-                    explanation_json=explanation_res.explanation_json
+                    explanation_json=explanation_res.explanation_json,
                 )
                 db.add(db_explanation)
 
         db.commit()
         inspection_id = db_inspection.id
-        logger.info(f"Persisted inspection to DB. ID: {inspection_id}, Status: {status_str}")
-        
+        logger.info(
+            f"Persisted inspection to DB. ID: {inspection_id}, Status: {status_str}"
+        )
+
         # Broadcast over WebSockets
         try:
             import asyncio
+
             from app.api.endpoints.websocket import manager
+
             ws_data = {
                 "event": "new_inspection",
                 "inspection": {
@@ -698,8 +744,8 @@ async def predict(
                     "confidence": avg_confidence,
                     "latency_ms": result.inference_time_ms,
                     "machine_id": machine_id,
-                    "image_path": db_image_path
-                }
+                    "image_path": db_image_path,
+                },
             }
             try:
                 loop = asyncio.get_running_loop()
@@ -710,7 +756,7 @@ async def predict(
                 pass  # No running event loop — skip WS broadcast
         except Exception as ws_exc:
             logger.warning(f"Failed to broadcast websocket notification: {ws_exc}")
-            
+
     except Exception as db_exc:
         db.rollback()
         inspection_id = None

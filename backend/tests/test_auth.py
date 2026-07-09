@@ -14,13 +14,11 @@ Covers:
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models.db_models import User
 from app.core.auth import get_password_hash
-from tests.conftest import auth_headers
+from app.models.db_models import User
 
 
 class TestRegistration:
@@ -57,7 +55,11 @@ class TestRegistration:
 
         resp = client.post(
             "/api/v1/auth/register",
-            json={"username": "dup_user", "email": "other@nika.ai", "password": "pass123"},
+            json={
+                "username": "dup_user",
+                "email": "other@nika.ai",
+                "password": "pass123",
+            },
         )
         assert resp.status_code == 409
 
@@ -100,7 +102,9 @@ class TestLogin:
         db_session.flush()
         return user
 
-    def test_login_success_returns_tokens(self, client: TestClient, db_session: Session):
+    def test_login_success_returns_tokens(
+        self, client: TestClient, db_session: Session
+    ):
         self._seed_user(db_session)
         resp = client.post(
             "/api/v1/auth/login",
@@ -159,7 +163,9 @@ class TestProfile:
 class TestTokenRefresh:
     """POST /api/v1/auth/refresh"""
 
-    def test_refresh_with_access_token_fails(self, client: TestClient, admin_token: str):
+    def test_refresh_with_access_token_fails(
+        self, client: TestClient, admin_token: str
+    ):
         """Passing an access token to the refresh endpoint must be rejected."""
         resp = client.post(
             "/api/v1/auth/refresh",

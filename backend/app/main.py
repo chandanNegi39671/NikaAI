@@ -27,16 +27,16 @@ from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
-
-from app.api import router                        # single versioned router — all routes
-from app.core.config import settings, Environment
-from app.core.logging import get_logger, setup_logging
-from app.services.prediction import prediction_service
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+
+from app.api import router  # single versioned router — all routes
+from app.core.config import Environment, settings
 from app.core.limiter import limiter
+from app.core.logging import get_logger, setup_logging
 from app.core.middleware import SecurityMiddleware
+from app.services.prediction import prediction_service
 
 logger = get_logger(__name__)
 
@@ -44,6 +44,7 @@ logger = get_logger(__name__)
 # ─────────────────────────────────────────────────────────────────────────────
 # Lifespan — startup & shutdown hooks
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -71,6 +72,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     try:
         from app.core.db_init import init_db
+
         init_db()
     except Exception as exc:
         logger.error(
@@ -105,6 +107,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 # ─────────────────────────────────────────────────────────────────────────────
 # Application Factory
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def create_app() -> FastAPI:
     """Build and configure the FastAPI application.
@@ -157,6 +160,7 @@ def create_app() -> FastAPI:
     # be blocked or slow on some networks, producing a blank white page.
     # Serving from unpkg.com resolves this.
     if not _is_production:
+
         @app.get("/api/docs", include_in_schema=False)
         async def custom_swagger_ui():
             return get_swagger_ui_html(
@@ -176,15 +180,19 @@ def create_app() -> FastAPI:
 
     # ── Prometheus Metrics ───────────────────────────────────────────────────
     from app.core.metrics import metrics_app
+
     app.mount("/metrics", metrics_app)
 
     # ── OpenTelemetry Tracing ────────────────────────────────────────────────
     from app.core.telemetry import setup_telemetry
+
     setup_telemetry(app)
 
     # ── Static Files ──────────────────────────────────────────────────────────
-    from fastapi.staticfiles import StaticFiles
     from pathlib import Path
+
+    from fastapi.staticfiles import StaticFiles
+
     static_dir = Path(__file__).resolve().parent.parent / "static"
     static_dir.mkdir(parents=True, exist_ok=True)
     (static_dir / "uploads").mkdir(parents=True, exist_ok=True)
@@ -217,9 +225,9 @@ def create_app() -> FastAPI:
                 "detail": {
                     "title": "Error Detail Description",
                     "type": "string",
-                    "example": "Resource not found or validation error details."
+                    "example": "Resource not found or validation error details.",
                 }
-            }
+            },
         }
 
         app.openapi_schema = openapi_schema

@@ -6,11 +6,12 @@ Database schema creation and seeding.
 
 from __future__ import annotations
 
-from app.core.database import Base, engine, SessionLocal
-from app.models.db_models import User, Machine, Worker, Shift, FactoryMemory, Session as DbSession
+from app.core.database import Base, SessionLocal, engine
 from app.core.logging import get_logger
+from app.models.db_models import FactoryMemory, Machine, Shift, User, Worker
 
 logger = get_logger(__name__)
+
 
 def init_db() -> None:
     """Initialize database tables and seed them with default operational metadata if empty."""
@@ -36,18 +37,45 @@ def init_db() -> None:
 
             # Seed Shifts using seeded worker ids
             logger.info("Seeding default shifts...")
-            s1 = Shift(name="Day", start_time="06:00:00", end_time="14:00:00", worker_id=w1.id)
-            s2 = Shift(name="Evening", start_time="14:00:00", end_time="22:00:00", worker_id=w2.id)
-            s3 = Shift(name="Night", start_time="22:00:00", end_time="06:00:00", worker_id=w3.id)
+            s1 = Shift(
+                name="Day", start_time="06:00:00", end_time="14:00:00", worker_id=w1.id
+            )
+            s2 = Shift(
+                name="Evening",
+                start_time="14:00:00",
+                end_time="22:00:00",
+                worker_id=w2.id,
+            )
+            s3 = Shift(
+                name="Night",
+                start_time="22:00:00",
+                end_time="06:00:00",
+                worker_id=w3.id,
+            )
             db.add_all([s1, s2, s3])
             db.commit()
-        
+
         # 2. Seed Machines
         if db.query(Machine).count() == 0:
             logger.info("Seeding default machines...")
-            m1 = Machine(name="CNC Press 01", model_number="CNC-XP1", status="operational", location="Zone A")
-            m2 = Machine(name="Welding Station A", model_number="WLD-M2", status="operational", location="Zone B")
-            m3 = Machine(name="Assembly Line 3", model_number="ASM-L3", status="operational", location="Zone C")
+            m1 = Machine(
+                name="CNC Press 01",
+                model_number="CNC-XP1",
+                status="operational",
+                location="Zone A",
+            )
+            m2 = Machine(
+                name="Welding Station A",
+                model_number="WLD-M2",
+                status="operational",
+                location="Zone B",
+            )
+            m3 = Machine(
+                name="Assembly Line 3",
+                model_number="ASM-L3",
+                status="operational",
+                location="Zone C",
+            )
             db.add_all([m1, m2, m3])
             db.commit()
 
@@ -85,19 +113,19 @@ def init_db() -> None:
                 defect_class="surface_crack",
                 description="Linear fracture patterns visible on metal surfaces.",
                 recurring_defect_pattern="Often correlates with high heat cycles during late shifts (Evening/Night) on CNC Press 01.",
-                recommended_action="1. Stop machine immediately.\n2. Verify coolant fluid pressure.\n3. Request dye penetrant inspection."
+                recommended_action="1. Stop machine immediately.\n2. Verify coolant fluid pressure.\n3. Request dye penetrant inspection.",
             )
             fm2 = FactoryMemory(
                 defect_class="scratch",
                 description="Linear abrasive markings indicating mechanical friction.",
                 recurring_defect_pattern="Commonly occurs during manual material handling or faulty guides in Assembly Line 3.",
-                recommended_action="1. Check conveyance belt guides.\n2. Re-align robotic pickup head.\n3. Clean surface protective covers."
+                recommended_action="1. Check conveyance belt guides.\n2. Re-align robotic pickup head.\n3. Clean surface protective covers.",
             )
             fm3 = FactoryMemory(
                 defect_class="dent",
                 description="Localized depression caused by force/impact.",
                 recurring_defect_pattern="Frequently associated with incorrect hydraulic press pressure settings.",
-                recommended_action="1. Inspect stamping mold alignment.\n2. Calibrate hydraulic pressure threshold.\n3. Inspect ejector pins."
+                recommended_action="1. Inspect stamping mold alignment.\n2. Calibrate hydraulic pressure threshold.\n3. Inspect ejector pins.",
             )
             db.add_all([fm1, fm2, fm3])
             db.commit()

@@ -4,20 +4,23 @@ backend/app/api/endpoints/sync.py
 Endpoints for Offline Edge node database batch synchronization.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from app.core.database import get_db
-from app.models.db_models import Inspection, Detection
-from app.core.auth import PermissionChecker
-from pydantic import BaseModel
-from typing import List
 from datetime import datetime
+from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.core.auth import PermissionChecker
+from app.core.database import get_db
+from app.models.db_models import Detection, Inspection
 
 router = APIRouter(
     prefix="/api/v1/sync",
     tags=["Offline Edge Sync"],
-    dependencies=[Depends(PermissionChecker("inspection:write"))]
+    dependencies=[Depends(PermissionChecker("inspection:write"))],
 )
+
 
 class DetectionSync(BaseModel):
     defect_class: str
@@ -26,6 +29,7 @@ class DetectionSync(BaseModel):
     y1: float
     x2: float
     y2: float
+
 
 class InspectionSync(BaseModel):
     offline_id: str
@@ -36,6 +40,7 @@ class InspectionSync(BaseModel):
     confidence: float
     inference_time_ms: float
     detections: List[DetectionSync]
+
 
 @router.post("/upload", summary="Batch upload offline edge inspection logs")
 def upload_edge_sync_logs(payload: List[InspectionSync], db: Session = Depends(get_db)):
@@ -48,9 +53,11 @@ def upload_edge_sync_logs(payload: List[InspectionSync], db: Session = Depends(g
         for ins in payload:
             # Check if already synced (idempotency guard) — no DB write, just a query
             edge_key = f"edge_sync_{ins.offline_id}"
-            exists = db.query(Inspection).filter(
-                Inspection.original_image_name == edge_key
-            ).first()
+            exists = (
+                db.query(Inspection)
+                .filter(Inspection.original_image_name == edge_key)
+                .first()
+            )
             if exists:
                 continue
 

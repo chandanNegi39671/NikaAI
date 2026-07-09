@@ -12,7 +12,6 @@ The health check is a critical observability endpoint. We verify:
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 
 
@@ -32,9 +31,9 @@ class TestHealthEndpoint:
         resp = client.get("/api/v1/health")
         data = resp.json()
         allowed_statuses = {"healthy", "degraded", "unhealthy"}
-        assert data["status"] in allowed_statuses, (
-            f"status must be one of {allowed_statuses}, got: {data['status']}"
-        )
+        assert (
+            data["status"] in allowed_statuses
+        ), f"status must be one of {allowed_statuses}, got: {data['status']}"
 
     def test_health_contains_version_info(self, client: TestClient):
         """Health response should include app version for debugging."""

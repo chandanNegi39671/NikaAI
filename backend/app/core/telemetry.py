@@ -21,10 +21,13 @@ def setup_telemetry(app) -> None:
         # This prevents a ModuleNotFoundError from crashing the entire app when
         # the opentelemetry-sdk package is not installed.
         from opentelemetry import trace
-        from opentelemetry.sdk.trace import TracerProvider
-        from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import (
+            BatchSpanProcessor,
+            ConsoleSpanExporter,
+        )
 
         # Set up a tracer provider
         provider = TracerProvider()
@@ -41,6 +44,7 @@ def setup_telemetry(app) -> None:
 
         # Instrument SQLAlchemy queries
         from app.core.database import engine
+
         SQLAlchemyInstrumentor().instrument(engine=engine)
 
         logger.info("OpenTelemetry distributed tracing configured successfully.")

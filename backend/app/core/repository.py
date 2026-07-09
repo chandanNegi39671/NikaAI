@@ -4,11 +4,14 @@ backend/app/core/repository.py
 Base Repository Pattern implementations for SQL Alchemy DB models.
 """
 
-from typing import Generic, TypeVar, Type, List, Any
+from typing import Any, Generic, List, Type, TypeVar
+
 from sqlalchemy.orm import Session
+
 from app.core.database import Base
 
 ModelType = TypeVar("ModelType", bound=Base)
+
 
 class BaseRepository(Generic[ModelType]):
     """Generic base repository providing abstract database operations."""
@@ -18,11 +21,23 @@ class BaseRepository(Generic[ModelType]):
 
     def get(self, db: Session, id: Any) -> ModelType | None:
         """Fetch model by primary key id."""
-        return db.query(self.model).filter(self.model.id == id, self.model.is_deleted == False).first()
+        return (
+            db.query(self.model)
+            .filter(self.model.id == id, self.model.is_deleted == False)
+            .first()
+        )
 
-    def get_multi(self, db: Session, skip: int = 0, limit: int = 100) -> List[ModelType]:
+    def get_multi(
+        self, db: Session, skip: int = 0, limit: int = 100
+    ) -> List[ModelType]:
         """Fetch multiple models with paging limit controls."""
-        return db.query(self.model).filter(self.model.is_deleted == False).offset(skip).limit(limit).all()
+        return (
+            db.query(self.model)
+            .filter(self.model.is_deleted == False)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     def create(self, db: Session, obj_in: Any) -> ModelType:
         """Create and persist a model instance."""
@@ -39,19 +54,34 @@ class BaseRepository(Generic[ModelType]):
             db.commit()
         return obj
 
+
 # ── Concrete Repositories ─────────────────────────────────────────────────────
 
 from app.models.db_models import (
-    Inspection, Machine, Worker, FactoryMemory, MaintenancePrediction,
-    ModelVersion, KnowledgeDocument, Conversation, ConversationMessage, AuditLog,
+    AuditLog,
+    Conversation,
+    ConversationMessage,
+    FactoryMemory,
+    Inspection,
+    KnowledgeDocument,
+    Machine,
+    MaintenancePrediction,
+    ModelVersion,
+    Worker,
 )
+
 
 class InspectionRepository(BaseRepository[Inspection]):
     def __init__(self) -> None:
         super().__init__(Inspection)
 
     def list_with_filters(
-        self, db: Session, status: str | None = None, machine_id: str | None = None, limit: int = 50, offset: int = 0
+        self,
+        db: Session,
+        status: str | None = None,
+        machine_id: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
     ) -> List[Inspection]:
         """Custom repository query with filtering options."""
         q = db.query(self.model).filter(self.model.is_deleted == False)
@@ -81,7 +111,9 @@ class InspectionRepository(BaseRepository[Inspection]):
 
         Returns (results, total_count) for pagination metadata.
         """
-        from sqlalchemy import func, desc as sa_desc, asc as sa_asc
+        from sqlalchemy import asc as sa_asc
+        from sqlalchemy import desc as sa_desc
+
         from app.models.db_models import Detection
 
         q = db.query(self.model).filter(self.model.is_deleted == False)
@@ -98,6 +130,7 @@ class InspectionRepository(BaseRepository[Inspection]):
             q = q.filter(self.model.confidence >= min_confidence)
         if date_from:
             from datetime import datetime
+
             try:
                 dt_from = datetime.fromisoformat(date_from)
                 q = q.filter(self.model.created_at >= dt_from)
@@ -105,6 +138,7 @@ class InspectionRepository(BaseRepository[Inspection]):
                 pass
         if date_to:
             from datetime import datetime
+
             try:
                 dt_to = datetime.fromisoformat(date_to)
                 q = q.filter(self.model.created_at <= dt_to)
@@ -130,13 +164,16 @@ class InspectionRepository(BaseRepository[Inspection]):
     def count_total(self, db: Session) -> int:
         return db.query(self.model).filter(self.model.is_deleted == False).count()
 
+
 class MachineRepository(BaseRepository[Machine]):
     def __init__(self) -> None:
         super().__init__(Machine)
 
+
 class WorkerRepository(BaseRepository[Worker]):
     def __init__(self) -> None:
         super().__init__(Worker)
+
 
 class FactoryMemoryRepository(BaseRepository[FactoryMemory]):
     def __init__(self) -> None:
@@ -193,6 +230,7 @@ class MaintenancePredictionRepository(BaseRepository[MaintenancePrediction]):
         Uses a subquery to get the max computed_at per machine_id, then joins.
         """
         from sqlalchemy import func
+
         subq = (
             db.query(
                 self.model.machine_id,
@@ -217,6 +255,7 @@ class MaintenancePredictionRepository(BaseRepository[MaintenancePrediction]):
     def count_by_risk_level(self, db: Session) -> dict[str, int]:
         """Return count of active predictions grouped by risk_level."""
         from sqlalchemy import func
+
         rows = (
             db.query(self.model.risk_level, func.count(self.model.id))
             .filter(self.model.is_deleted == False)
@@ -227,6 +266,7 @@ class MaintenancePredictionRepository(BaseRepository[MaintenancePrediction]):
 
 
 # ── Sprint 8 Repositories ─────────────────────────────────────────────────────
+
 
 class ModelVersionRepository(BaseRepository[ModelVersion]):
     """Repository for AI model version registry.
@@ -249,10 +289,14 @@ class ModelVersionRepository(BaseRepository[ModelVersion]):
             .first()
         )
 
-    def get_by_version_name(self, db: Session, version_name: str) -> ModelVersion | None:
+    def get_by_version_name(
+        self, db: Session, version_name: str
+    ) -> ModelVersion | None:
         return (
             db.query(self.model)
-            .filter(self.model.version_name == version_name, self.model.is_deleted == False)
+            .filter(
+                self.model.version_name == version_name, self.model.is_deleted == False
+            )
             .first()
         )
 
@@ -266,7 +310,9 @@ class ModelVersionRepository(BaseRepository[ModelVersion]):
         """
         VALID_STATUSES = {"training", "validated", "staging", "production", "archived"}
         if status not in VALID_STATUSES:
-            raise ValueError(f"Invalid deployment_status '{status}'. Must be one of {VALID_STATUSES}")
+            raise ValueError(
+                f"Invalid deployment_status '{status}'. Must be one of {VALID_STATUSES}"
+            )
 
         if status == "production":
             # Archive previous production model
@@ -283,7 +329,9 @@ class ModelVersionRepository(BaseRepository[ModelVersion]):
         db.refresh(target)
         return target
 
-    def list_all(self, db: Session, limit: int = 100, offset: int = 0) -> List[ModelVersion]:
+    def list_all(
+        self, db: Session, limit: int = 100, offset: int = 0
+    ) -> List[ModelVersion]:
         return (
             db.query(self.model)
             .filter(self.model.is_deleted == False)
@@ -331,7 +379,9 @@ class KnowledgeDocumentRepository(BaseRepository[KnowledgeDocument]):
         )
         if doc_type:
             q = q.filter(self.model.doc_type == doc_type)
-        return q.order_by(self.model.created_at.desc()).offset(offset).limit(limit).all()
+        return (
+            q.order_by(self.model.created_at.desc()).offset(offset).limit(limit).all()
+        )
 
 
 class ConversationRepository(BaseRepository[Conversation]):
@@ -343,7 +393,9 @@ class ConversationRepository(BaseRepository[Conversation]):
     def get_by_session_key(self, db: Session, session_key: str) -> Conversation | None:
         return (
             db.query(self.model)
-            .filter(self.model.session_key == session_key, self.model.is_deleted == False)
+            .filter(
+                self.model.session_key == session_key, self.model.is_deleted == False
+            )
             .first()
         )
 
@@ -383,6 +435,7 @@ class ConversationMessageRepository(BaseRepository[ConversationMessage]):
     ) -> ConversationMessage:
         """Persist a new message row and return the saved instance."""
         from datetime import datetime, timezone
+
         msg = ConversationMessage(
             conversation_id=conversation_id,
             role=role,
@@ -396,9 +449,11 @@ class ConversationMessageRepository(BaseRepository[ConversationMessage]):
 
     def delete_for_conversation(self, db: Session, conversation_id: str) -> int:
         """Hard-delete all messages in a conversation. Returns rows deleted."""
-        count = db.query(self.model).filter(
-            self.model.conversation_id == conversation_id
-        ).delete()
+        count = (
+            db.query(self.model)
+            .filter(self.model.conversation_id == conversation_id)
+            .delete()
+        )
         db.commit()
         return count
 
@@ -437,19 +492,23 @@ class AuditLogRepository(BaseRepository[AuditLog]):
             q = q.filter(self.model.request_id == request_id)
         if date_from:
             from datetime import datetime
+
             try:
                 q = q.filter(self.model.created_at >= datetime.fromisoformat(date_from))
             except ValueError:
                 pass
         if date_to:
             from datetime import datetime
+
             try:
                 q = q.filter(self.model.created_at <= datetime.fromisoformat(date_to))
             except ValueError:
                 pass
 
         total = q.count()
-        results = q.order_by(self.model.created_at.desc()).offset(offset).limit(limit).all()
+        results = (
+            q.order_by(self.model.created_at.desc()).offset(offset).limit(limit).all()
+        )
         return results, total
 
 

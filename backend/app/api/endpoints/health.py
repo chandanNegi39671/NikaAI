@@ -31,11 +31,11 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
+from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.services.prediction import prediction_service
-from sqlalchemy import text
 
 logger = get_logger(__name__)
 
@@ -52,6 +52,7 @@ router = APIRouter(
 # ─────────────────────────────────────────────────────────────────────────────
 # Response Model
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class HealthResponse(BaseModel):
     """Liveness and readiness information returned by GET /api/v1/health.
@@ -90,7 +91,7 @@ class HealthResponse(BaseModel):
     )
 
     model_config = {
-        "protected_namespaces": (),   # allow model_* field names without warnings
+        "protected_namespaces": (),  # allow model_* field names without warnings
         "json_schema_extra": {
             "example": {
                 "status": "healthy",
@@ -106,6 +107,7 @@ class HealthResponse(BaseModel):
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _format_uptime(elapsed_seconds: float) -> str:
     """Convert a float of elapsed seconds into a human-readable uptime string.
@@ -132,6 +134,7 @@ def _format_uptime(elapsed_seconds: float) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # Route
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @router.get(
     "/health",
@@ -191,7 +194,7 @@ async def health_check() -> HealthResponse:
 @router.get(
     "/ready",
     summary="Readiness check",
-    description="Detailed readiness check validating DB, Redis, and YOLO model statuses."
+    description="Detailed readiness check validating DB, Redis, and YOLO model statuses.",
 )
 async def ready_check():
     """Verify that all core services are online and ready to accept requests."""
@@ -199,6 +202,7 @@ async def ready_check():
     db_ok = False
     try:
         from app.core.database import SessionLocal
+
         db = SessionLocal()
         # Run a simple query to assert DB health
         db.execute(text("SELECT 1"))
@@ -212,6 +216,7 @@ async def ready_check():
     redis_ok = False
     try:
         from app.core.redis import get_redis
+
         redis_client = get_redis()
         if redis_client and redis_client.ping():
             redis_ok = True
@@ -225,32 +230,35 @@ async def ready_check():
     if not (db_ok and redis_ok and model_ok):
         status_code = 503
 
-    from fastapi import Response
     import json
+
+    from fastapi import Response
+
     content = {
         "status": "ready" if status_code == 200 else "degraded",
         "database": "online" if db_ok else "offline",
         "redis": "online" if redis_ok else "offline",
-        "yolo_model": "loaded" if model_ok else "not_loaded"
+        "yolo_model": "loaded" if model_ok else "not_loaded",
     }
     return Response(
         content=json.dumps(content),
         media_type="application/json",
-        status_code=status_code
+        status_code=status_code,
     )
 
 
 @router.get(
     "/live",
     summary="Liveness check",
-    description="System liveness heartbeat check validating disk, CPU, and RAM thresholds."
+    description="System liveness heartbeat check validating disk, CPU, and RAM thresholds.",
 )
 async def live_check():
     """Rapid hardware sanity check for Kubernetes liveness checks."""
+    import json
     import shutil
+
     import psutil
     from fastapi import Response
-    import json
 
     # Disk Space check
     total, used, free = shutil.disk_usage("/")
@@ -259,7 +267,7 @@ async def live_check():
 
     # Memory Check
     mem = psutil.virtual_memory()
-    mem_ok = mem.percent < 95.0   # Safe boundary: < 95% RAM utilization
+    mem_ok = mem.percent < 95.0  # Safe boundary: < 95% RAM utilization
 
     status_code = 200
     if not (disk_ok and mem_ok):
@@ -268,10 +276,10 @@ async def live_check():
     content = {
         "status": "healthy" if status_code == 200 else "degraded",
         "disk_free_percent": round(free_percent, 2),
-        "ram_used_percent": mem.percent
+        "ram_used_percent": mem.percent,
     }
     return Response(
         content=json.dumps(content),
         media_type="application/json",
-        status_code=status_code
+        status_code=status_code,
     )

@@ -5,17 +5,20 @@ Endpoints for defect pattern library & factory memory guidelines.
 """
 
 from __future__ import annotations
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+
+from app.core.auth import PermissionChecker
 from app.core.database import get_db
 from app.services.factory_memory import get_factory_memories
-from app.core.auth import PermissionChecker
 
 router = APIRouter(
     prefix="/api/v1/factory-memory",
     tags=["Factory Memory"],
-    dependencies=[Depends(PermissionChecker("inspection:read"))]
+    dependencies=[Depends(PermissionChecker("inspection:read"))],
 )
+
 
 @router.get("")
 def list_patterns(query: str | None = None, db: Session = Depends(get_db)):

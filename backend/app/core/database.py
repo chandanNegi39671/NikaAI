@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Generator
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 from app.core.config import settings
 
@@ -29,15 +29,12 @@ else:
     pool_kwargs = {
         "pool_size": 10,
         "max_overflow": 20,
-        "pool_pre_ping": True,     # Pre-check database connections before checkout
-        "pool_recycle": 1800,     # Recycle connections after 30 minutes to prevent stale links
+        "pool_pre_ping": True,  # Pre-check database connections before checkout
+        "pool_recycle": 1800,  # Recycle connections after 30 minutes to prevent stale links
     }
 
 engine = create_engine(
-    database_url,
-    connect_args=connect_args,
-    echo=settings.debug,
-    **pool_kwargs
+    database_url, connect_args=connect_args, echo=settings.debug, **pool_kwargs
 )
 
 SessionLocal = sessionmaker(
@@ -47,6 +44,7 @@ SessionLocal = sessionmaker(
 )
 
 Base = declarative_base()
+
 
 def get_db() -> Generator[Session, None, None]:
     """Dependency injection yield for SQLAlchemy sessions.

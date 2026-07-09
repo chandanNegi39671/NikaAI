@@ -1,6 +1,8 @@
 import sys
+
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+
 from app.core.config import settings
 
 # Initialize the global rate limiter using the client's IP address
@@ -8,8 +10,4 @@ from app.core.config import settings
 is_testing = "pytest" in sys.modules
 storage_uri = "memory://" if is_testing else settings.redis_url
 
-limiter = Limiter(
-    key_func=get_remote_address,
-    storage_uri=storage_uri
-)
-
+limiter = Limiter(key_func=get_remote_address, storage_uri=storage_uri)

@@ -11,22 +11,19 @@ Unit and repository tests for Sprint 8 database models:
 from __future__ import annotations
 
 import pytest
-from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
-from app.models.db_models import (
-    ModelVersion,
-    KnowledgeDocument,
-    Conversation,
-    ConversationMessage,
-    AuditLog,
-)
 from app.core.repository import (
-    model_version_repo,
-    knowledge_document_repo,
-    conversation_repo,
-    conversation_message_repo,
     audit_log_repo,
+    conversation_message_repo,
+    conversation_repo,
+    knowledge_document_repo,
+    model_version_repo,
+)
+from app.models.db_models import (
+    AuditLog,
+    KnowledgeDocument,
+    ModelVersion,
 )
 
 
@@ -45,10 +42,10 @@ class TestModelVersionRepository:
             commit_hash="abc12345",
             model_size_mb=42.5,
             parameter_count=3200000,
-            notes="Evaluated successfully."
+            notes="Evaluated successfully.",
         )
         created = model_version_repo.create(db_session, version)
-        
+
         assert created.id is not None
         assert created.version_name == "test_model_v1.pt"
         assert created.deployment_status == "validated"
@@ -77,23 +74,46 @@ class TestModelVersionRepository:
 
         # 2. Promote model1 to production
         model_version_repo.set_deployment_status(db_session, "model1.pt", "production")
-        assert model_version_repo.get_by_version_name(db_session, "model1.pt").deployment_status == "production"
-        assert model_version_repo.get_production_model(db_session).version_name == "model1.pt"
+        assert (
+            model_version_repo.get_by_version_name(
+                db_session, "model1.pt"
+            ).deployment_status
+            == "production"
+        )
+        assert (
+            model_version_repo.get_production_model(db_session).version_name
+            == "model1.pt"
+        )
 
         # 3. Promote model2 to production (should automatically archive model1)
         model_version_repo.set_deployment_status(db_session, "model2.pt", "production")
-        db_session.expire_all() # clear SQLAlchemy session cache
+        db_session.expire_all()  # clear SQLAlchemy session cache
 
-        assert model_version_repo.get_by_version_name(db_session, "model2.pt").deployment_status == "production"
-        assert model_version_repo.get_by_version_name(db_session, "model1.pt").deployment_status == "archived"
-        assert model_version_repo.get_production_model(db_session).version_name == "model2.pt"
+        assert (
+            model_version_repo.get_by_version_name(
+                db_session, "model2.pt"
+            ).deployment_status
+            == "production"
+        )
+        assert (
+            model_version_repo.get_by_version_name(
+                db_session, "model1.pt"
+            ).deployment_status
+            == "archived"
+        )
+        assert (
+            model_version_repo.get_production_model(db_session).version_name
+            == "model2.pt"
+        )
 
     def test_set_invalid_status_raises_value_error(self, db_session: Session):
         m = ModelVersion(version_name="temp.pt", deployment_status="staging")
         model_version_repo.create(db_session, m)
 
         with pytest.raises(ValueError) as exc:
-            model_version_repo.set_deployment_status(db_session, "temp.pt", "invalid_status")
+            model_version_repo.set_deployment_status(
+                db_session, "temp.pt", "invalid_status"
+            )
         assert "invalid_status" in str(exc.value)
 
 
@@ -104,21 +124,21 @@ class TestKnowledgeDocumentRepository:
             content="When surface cracks are detected on Guide Rails, CNC machines must be halted immediately.",
             doc_type="sop",
             tags="crack,rail,cnc",
-            is_active=True
+            is_active=True,
         )
         doc2 = KnowledgeDocument(
             title="FAQ about scratches",
             content="Minor scratches can be buffed out if they are under 0.2mm in depth.",
             doc_type="faq",
             tags="scratch,buffing",
-            is_active=True
+            is_active=True,
         )
         doc3 = KnowledgeDocument(
             title="Inactive guide",
             content="Old procedures for scratches.",
             doc_type="manual",
             tags="scratch,old",
-            is_active=False
+            is_active=False,
         )
         knowledge_document_repo.create(db_session, doc1)
         knowledge_document_repo.create(db_session, doc2)
@@ -130,12 +150,16 @@ class TestKnowledgeDocumentRepository:
         assert results_crack[0].title == "SOP for surface cracks"
 
         # Search for 'scratch'
-        results_scratch = knowledge_document_repo.search_by_keyword(db_session, "scratch")
+        results_scratch = knowledge_document_repo.search_by_keyword(
+            db_session, "scratch"
+        )
         assert len(results_scratch) == 1
         assert results_scratch[0].title == "FAQ about scratches"
 
         # Search with non-matching query
-        results_empty = knowledge_document_repo.search_by_keyword(db_session, "missing_term")
+        results_empty = knowledge_document_repo.search_by_keyword(
+            db_session, "missing_term"
+        )
         assert len(results_empty) == 0
 
 
@@ -153,26 +177,36 @@ class TestConversationRepository:
 
     def test_add_and_fetch_messages(self, db_session: Session):
         conv = conversation_repo.get_or_create(db_session, "session_key_abc")
-        
-        m1 = conversation_message_repo.add_message(db_session, conv.id, "user", "Hello copilot")
-        m2 = conversation_message_repo.add_message(db_session, conv.id, "assistant", "Hello! How can I assist you?")
-        
+
+        m1 = conversation_message_repo.add_message(
+            db_session, conv.id, "user", "Hello copilot"
+        )
+        m2 = conversation_message_repo.add_message(
+            db_session, conv.id, "assistant", "Hello! How can I assist you?"
+        )
+
         assert m1.id is not None
         assert m1.role == "user"
         assert m1.content == "Hello copilot"
         assert m2.role == "assistant"
         assert m2.content == "Hello! How can I assist you?"
 
-        messages = conversation_message_repo.get_messages_for_conversation(db_session, conv.id)
+        messages = conversation_message_repo.get_messages_for_conversation(
+            db_session, conv.id
+        )
         assert len(messages) == 2
         assert messages[0].role == "user"
         assert messages[1].role == "assistant"
 
         # Delete messages for conversation
-        deleted_count = conversation_message_repo.delete_for_conversation(db_session, conv.id)
+        deleted_count = conversation_message_repo.delete_for_conversation(
+            db_session, conv.id
+        )
         assert deleted_count == 2
-        
-        messages_after = conversation_message_repo.get_messages_for_conversation(db_session, conv.id)
+
+        messages_after = conversation_message_repo.get_messages_for_conversation(
+            db_session, conv.id
+        )
         assert len(messages_after) == 0
 
 
@@ -186,7 +220,7 @@ class TestAuditLogExtendedRepository:
             ip_address="192.168.1.100",
             old_value="v1.pt",
             new_value="v2.pt",
-            request_id="req_uuid_abc_123"
+            request_id="req_uuid_abc_123",
         )
         created = audit_log_repo.create(db_session, log)
         assert created.id is not None
@@ -198,7 +232,7 @@ class TestAuditLogExtendedRepository:
             db_session,
             action="switch_model",
             request_id="req_uuid_abc_123",
-            entity_type="model"
+            entity_type="model",
         )
         assert total == 1
         assert len(results) == 1

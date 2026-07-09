@@ -7,19 +7,19 @@ JWT Authentication & Role-Based Access Control logic.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 import jwt
-from jwt.exceptions import PyJWTError, ExpiredSignatureError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jwt.exceptions import ExpiredSignatureError, PyJWTError
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.models.db_models import User
 from app.core.logging import get_logger
+from app.models.db_models import User
 
 logger = get_logger(__name__)
 
@@ -29,8 +29,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # OAuth2 scheme definition
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/api/v1/auth/login",
-    auto_error=False  # Allow custom verification and guest paths
+    auto_error=False,  # Allow custom verification and guest paths
 )
+
 
 # Defined Roles
 class UserRole:
@@ -39,6 +40,7 @@ class UserRole:
     OPERATOR = "operator"
     VIEWER = "viewer"
 
+
 # Role Hierarchy / Permissions mapping
 # Admin can access everything
 # Supervisor can access inspections, reports, analytics
@@ -46,9 +48,15 @@ class UserRole:
 # Viewer can only see the dashboard
 ROLE_PERMISSIONS: Dict[str, List[str]] = {
     UserRole.ADMIN: ["*"],
-    UserRole.SUPERVISOR: ["inspection:read", "inspection:write", "reports:read", "reports:write", "analytics:read"],
+    UserRole.SUPERVISOR: [
+        "inspection:read",
+        "inspection:write",
+        "reports:read",
+        "reports:write",
+        "analytics:read",
+    ],
     UserRole.OPERATOR: ["inspection:read", "inspection:write"],
-    UserRole.VIEWER: ["analytics:read"]
+    UserRole.VIEWER: ["analytics:read"],
 }
 
 
@@ -67,10 +75,7 @@ def get_password_hash(password: str) -> str:
 
 
 def create_token(
-    subject: str,
-    role: str,
-    token_type: str,
-    expires_delta: timedelta | None = None
+    subject: str, role: str, token_type: str, expires_delta: timedelta | None = None
 ) -> str:
     """Generic JWT token creator."""
     now = datetime.now(timezone.utc)
@@ -101,16 +106,12 @@ def create_access_token(subject: str, role: str) -> str:
 def create_refresh_token(subject: str, role: str) -> str:
     """Create a long-lived refresh token."""
     return create_token(
-        subject, 
-        role, 
-        "refresh", 
-        timedelta(days=settings.refresh_token_expire_days)
+        subject, role, "refresh", timedelta(days=settings.refresh_token_expire_days)
     )
 
 
 async def get_current_user(
-    token: str | None = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    token: str | None = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ) -> User:
     """Validate access token and return the authenticated User database object."""
     if not token:
@@ -119,22 +120,21 @@ async def get_current_user(
             detail="Not authenticated. Access token missing.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-        
+
     from app.core.redis import is_token_blacklisted
+
     if is_token_blacklisted(token):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has been blacklisted (logged out).",
             headers={"WWW-Authenticate": "Bearer"},
         )
-        
+
     try:
         payload = jwt.decode(
-            token, 
-            settings.secret_key, 
-            algorithms=[settings.algorithm]
+            token, settings.secret_key, algorithms=[settings.algorithm]
         )
-        
+
         # Verify token type is "access"
         if payload.get("type") != "access":
             raise HTTPException(
@@ -142,7 +142,7 @@ async def get_current_user(
                 detail="Invalid token type. Expected access token.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-            
+
         username: str | None = payload.get("sub")
         if not username:
             raise HTTPException(
@@ -150,7 +150,7 @@ async def get_current_user(
                 detail="Could not validate credentials. Subject missing.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-            
+
     except ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -165,14 +165,18 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user = db.query(User).filter(User.username == username, User.is_deleted == False).first()
+    user = (
+        db.query(User)
+        .filter(User.username == username, User.is_deleted == False)
+        .first()
+    )
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User account associated with this token not found.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-        
+
     return user
 
 
@@ -184,11 +188,11 @@ class PermissionChecker:
 
     def __call__(self, user: User = Depends(get_current_user)) -> User:
         user_role = user.role.lower()
-        
+
         # Admin bypass
         if user_role == UserRole.ADMIN:
             return user
-            
+
         allowed_perms = ROLE_PERMISSIONS.get(user_role, [])
         if "*" in allowed_perms or self.required_permission in allowed_perms:
             return user
@@ -199,7 +203,7 @@ class PermissionChecker:
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Access Denied: Role '{user.role}' lacks permission '{self.required_permission}'"
+            detail=f"Access Denied: Role '{user.role}' lacks permission '{self.required_permission}'",
         )
 
 
@@ -208,12 +212,12 @@ def verify_factory_scope(user: User, resource: Any) -> None:
     user_role = user.role.lower()
     if user_role == UserRole.ADMIN:
         return  # Admin has global override access across all plants
-        
+
     user_fid = getattr(user, "factory_id", None)
     res_fid = getattr(resource, "factory_id", None)
-    
+
     if user_fid and res_fid and user_fid != res_fid:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access Denied: Resource belongs to another factory plant."
+            detail="Access Denied: Resource belongs to another factory plant.",
         )

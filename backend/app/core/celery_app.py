@@ -5,12 +5,11 @@ Celery application configuration for background asynchronous task execution.
 """
 
 from celery import Celery
+
 from app.core.config import settings
 
 celery_app = Celery(
-    "nika_ai",
-    broker=settings.celery_broker_url,
-    backend=settings.celery_result_backend
+    "nika_ai", broker=settings.celery_broker_url, backend=settings.celery_result_backend
 )
 
 celery_app.conf.update(
@@ -33,20 +32,20 @@ celery_app.conf.beat_schedule = {
     "generate-daily-report": {
         "task": "app.services.tasks.generate_scheduled_report",
         "schedule": crontab(hour=0, minute=0),
-        "args": ("daily",)
+        "args": ("daily",),
     },
     "generate-weekly-report": {
         "task": "app.services.tasks.generate_scheduled_report",
         "schedule": crontab(day_of_week="sun", hour=0, minute=0),
-        "args": ("weekly",)
+        "args": ("weekly",),
     },
     "generate-monthly-report": {
         "task": "app.services.tasks.generate_scheduled_report",
         "schedule": crontab(day_of_month=1, hour=0, minute=0),
-        "args": ("monthly",)
+        "args": ("monthly",),
     },
     "nika-system-backup": {
         "task": "app.services.tasks.run_system_backup",
-        "schedule": crontab(day_of_week="sun", hour=2, minute=0)
-    }
+        "schedule": crontab(day_of_week="sun", hour=2, minute=0),
+    },
 }

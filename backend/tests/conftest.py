@@ -20,13 +20,12 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from app.core.database import Base, get_db
 from app.core.auth import create_access_token, get_password_hash
+from app.core.database import Base, get_db
 from app.main import app
-from app.models.db_models import User, Machine, Worker, Shift
-
+from app.models.db_models import Machine, User
 
 # ── Test database ─────────────────────────────────────────────────────────────
 
@@ -81,6 +80,7 @@ def client(db_session: Session) -> TestClient:
 
 # ── User fixtures ─────────────────────────────────────────────────────────────
 
+
 @pytest.fixture()
 def admin_user(db_session: Session) -> User:
     """Create and persist a test admin user."""
@@ -125,6 +125,7 @@ def viewer_user(db_session: Session) -> User:
 
 # ── Token fixtures ────────────────────────────────────────────────────────────
 
+
 @pytest.fixture()
 def admin_token(admin_user: User) -> str:
     """Return a valid JWT access token for the admin user."""
@@ -144,6 +145,7 @@ def viewer_token(viewer_user: User) -> str:
 
 
 # ── Helper functions ──────────────────────────────────────────────────────────
+
 
 def auth_headers(token: str) -> dict:
     """Build Authorization header dict from a JWT token string."""
@@ -166,6 +168,7 @@ def viewer_headers(viewer_token: str) -> dict:
 
 
 # ── Image fixtures ────────────────────────────────────────────────────────────
+
 
 @pytest.fixture()
 def sample_jpeg_bytes() -> bytes:
@@ -196,6 +199,7 @@ def too_small_image_bytes() -> bytes:
 
 # ── Machine fixtures ──────────────────────────────────────────────────────────
 
+
 @pytest.fixture()
 def sample_machine(db_session: Session) -> Machine:
     """Create and persist a test machine."""
@@ -214,6 +218,7 @@ def sample_machine(db_session: Session) -> Machine:
 def mock_celery_task(monkeypatch):
     """Globally mock Celery delay connections to avoid tests hanging on Redis."""
     from unittest.mock import MagicMock
+
     from app.services.tasks import run_yolo_inference
 
     mock_delay = MagicMock()
@@ -224,12 +229,12 @@ def mock_celery_task(monkeypatch):
             {
                 "defect": "surface_crack",
                 "confidence": 0.92,
-                "bounding_box": {"x1": 10.0, "y1": 20.0, "x2": 200.0, "y2": 300.0}
+                "bounding_box": {"x1": 10.0, "y1": 20.0, "x2": 200.0, "y2": 300.0},
             }
         ],
         "inference_time_ms": 43.2,
         "image_width": 100,
-        "image_height": 100
+        "image_height": 100,
     }
     mock_delay.return_value = mock_result
     monkeypatch.setattr(run_yolo_inference, "delay", mock_delay)

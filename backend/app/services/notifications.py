@@ -53,9 +53,10 @@ class NotificationService:
         if not settings.smtp_host:
             raise ChannelNotConfigured("SMTP_HOST is not configured")
 
-        import aiosmtplib
         from email.mime.multipart import MIMEMultipart
         from email.mime.text import MIMEText
+
+        import aiosmtplib
 
         msg = MIMEMultipart()
         msg["From"] = settings.smtp_from_address
@@ -103,18 +104,28 @@ class NotificationService:
         if not settings.discord_webhook_url:
             raise ChannelNotConfigured("DISCORD_WEBHOOK_URL is not configured")
         async with httpx.AsyncClient(timeout=10.0) as client:
-            res = await client.post(settings.discord_webhook_url, json={"content": message})
+            res = await client.post(
+                settings.discord_webhook_url, json={"content": message}
+            )
             res.raise_for_status()
 
     @staticmethod
     async def _send_sms(message: str, to_number: str) -> None:
-        if not (settings.twilio_account_sid and settings.twilio_auth_token and settings.twilio_from_number):
+        if not (
+            settings.twilio_account_sid
+            and settings.twilio_auth_token
+            and settings.twilio_from_number
+        ):
             raise ChannelNotConfigured("Twilio credentials are not fully configured")
         url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.twilio_account_sid}/Messages.json"
         async with httpx.AsyncClient(timeout=10.0) as client:
             res = await client.post(
                 url,
-                data={"From": settings.twilio_from_number, "To": to_number, "Body": message},
+                data={
+                    "From": settings.twilio_from_number,
+                    "To": to_number,
+                    "Body": message,
+                },
                 auth=(settings.twilio_account_sid, settings.twilio_auth_token),
             )
             res.raise_for_status()
@@ -149,7 +160,9 @@ class NotificationService:
         each reflecting its real delivery outcome.
         """
         if priority not in VALID_PRIORITIES:
-            raise ValueError(f"priority must be one of {VALID_PRIORITIES}, got '{priority}'")
+            raise ValueError(
+                f"priority must be one of {VALID_PRIORITIES}, got '{priority}'"
+            )
         unknown = set(channels) - VALID_CHANNELS
         if unknown:
             raise ValueError(f"unknown channel(s): {unknown}")
@@ -180,26 +193,40 @@ class NotificationService:
                 try:
                     if channel == "email":
                         await NotificationService._send_email(
-                            title, message, recipients.get("email", settings.smtp_from_address)
+                            title,
+                            message,
+                            recipients.get("email", settings.smtp_from_address),
                         )
                     elif channel == "slack":
                         await NotificationService._send_slack(f"*{title}*\n{message}")
                     elif channel == "teams":
                         await NotificationService._send_teams(title, message)
                     elif channel == "discord":
-                        await NotificationService._send_discord(f"**{title}**\n{message}")
+                        await NotificationService._send_discord(
+                            f"**{title}**\n{message}"
+                        )
                     elif channel == "sms":
                         to_number = recipients.get("sms")
                         if not to_number:
-                            raise ChannelNotConfigured("no SMS recipient number provided")
-                        await NotificationService._send_sms(f"{title}: {message}", to_number)
+                            raise ChannelNotConfigured(
+                                "no SMS recipient number provided"
+                            )
+                        await NotificationService._send_sms(
+                            f"{title}: {message}", to_number
+                        )
                     elif channel == "webhook":
                         if not webhook_url:
                             raise ChannelNotConfigured("no webhook_url provided")
                         await NotificationService._send_webhook(
                             webhook_url,
-                            {"event_type": event_type, "title": title, "message": message,
-                             "priority": priority, "machine_id": machine_id, "metadata": metadata},
+                            {
+                                "event_type": event_type,
+                                "title": title,
+                                "message": message,
+                                "priority": priority,
+                                "machine_id": machine_id,
+                                "metadata": metadata,
+                            },
                         )
 
                     record.status = "sent"
@@ -216,7 +243,9 @@ class NotificationService:
 
                 except Exception as exc:
                     record.last_error = str(exc)
-                    logger.warning(f"Notification via '{channel}' failed (attempt {attempt}): {exc}")
+                    logger.warning(
+                        f"Notification via '{channel}' failed (attempt {attempt}): {exc}"
+                    )
                     if attempt == settings.notification_max_retries:
                         record.status = "failed"
 
@@ -227,11 +256,17 @@ class NotificationService:
         return results
 
     @staticmethod
-    def acknowledge(db: Session, notification_id: str, user_id: str) -> Notification | None:
+    def acknowledge(
+        db: Session, notification_id: str, user_id: str
+    ) -> Notification | None:
         """Mark a notification acknowledged, stopping further escalation."""
-        record = db.query(Notification).filter(
-            Notification.id == notification_id, Notification.is_deleted == False
-        ).first()
+        record = (
+            db.query(Notification)
+            .filter(
+                Notification.id == notification_id, Notification.is_deleted == False
+            )
+            .first()
+        )
         if not record:
             return None
         record.acknowledged_at = datetime.now(timezone.utc)
@@ -244,15 +279,21 @@ class NotificationService:
     def get_unacknowledged_for_escalation(db: Session) -> list[Notification]:
         """Find critical/high-priority notifications past the escalation
         window that are still unacknowledged and haven't already escalated."""
-        cutoff = datetime.now(timezone.utc) - timedelta(minutes=settings.notification_escalation_minutes)
-        return db.query(Notification).filter(
-            Notification.is_deleted == False,
-            Notification.requires_ack == True,
-            Notification.acknowledged_at.is_(None),
-            Notification.escalated_at.is_(None),
-            Notification.priority.in_(["high", "critical"]),
-            Notification.created_at <= cutoff,
-        ).all()
+        cutoff = datetime.now(timezone.utc) - timedelta(
+            minutes=settings.notification_escalation_minutes
+        )
+        return (
+            db.query(Notification)
+            .filter(
+                Notification.is_deleted == False,
+                Notification.requires_ack == True,
+                Notification.acknowledged_at.is_(None),
+                Notification.escalated_at.is_(None),
+                Notification.priority.in_(["high", "critical"]),
+                Notification.created_at <= cutoff,
+            )
+            .all()
+        )
 
     @staticmethod
     async def escalate_unacknowledged(db: Session) -> int:
@@ -282,7 +323,11 @@ class NotificationService:
 
     @staticmethod
     async def trigger_defect_alerts(
-        db: Session, defect_type: str, confidence: float, machine_name: str, machine_id: str | None = None
+        db: Session,
+        defect_type: str,
+        confidence: float,
+        machine_name: str,
+        machine_id: str | None = None,
     ) -> list[Notification]:
         """Convenience wrapper for the most common alert: a critical defect detection."""
         title = f"🚨 Critical defect detected: {defect_type.replace('_', ' ').title()}"
@@ -303,5 +348,9 @@ class NotificationService:
             machine_id=machine_id,
             recipients={"email": "supervisor@nika.ai"},
             requires_ack=True,
-            metadata={"defect_type": defect_type, "confidence": confidence, "machine_name": machine_name},
+            metadata={
+                "defect_type": defect_type,
+                "confidence": confidence,
+                "machine_name": machine_name,
+            },
         )

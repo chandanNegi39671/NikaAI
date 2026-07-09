@@ -4,28 +4,30 @@ backend/app/api/endpoints/inference_history.py
 Endpoints for querying and filtering paginated inspection logs.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
 from typing import List, Optional
-from datetime import datetime
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.core.auth import PermissionChecker
 from app.core.database import get_db
 from app.services.inference_history import list_inference_history
-from app.core.auth import PermissionChecker
 
 router = APIRouter(
     prefix="/api/v1/inference",
     tags=["Inference History"],
-    dependencies=[Depends(PermissionChecker("inspection:read"))]
+    dependencies=[Depends(PermissionChecker("inspection:read"))],
 )
 
 # ── Pydantic Schemas ──────────────────────────────────────────────────────────
+
 
 class DetectionDetailSchema(BaseModel):
     defect_class: str
     confidence: float
     bounding_box: dict
+
 
 class InferenceLogSchema(BaseModel):
     id: str
@@ -41,6 +43,7 @@ class InferenceLogSchema(BaseModel):
     created_at: Optional[str] = None
     detections: List[DetectionDetailSchema]
 
+
 class InferenceHistoryResponse(BaseModel):
     total: int
     results: List[InferenceLogSchema]
@@ -50,7 +53,12 @@ class InferenceHistoryResponse(BaseModel):
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@router.get("/history", response_model=InferenceHistoryResponse, summary="Query paginated inspection logs")
+
+@router.get(
+    "/history",
+    response_model=InferenceHistoryResponse,
+    summary="Query paginated inspection logs",
+)
 def query_inference_history(
     machine_id: Optional[str] = None,
     worker_id: Optional[str] = None,
@@ -64,7 +72,7 @@ def query_inference_history(
     offset: int = 0,
     sort_by: str = "created_at",
     sort_dir: str = "desc",
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Retrieve filtered, paginated visual inspections registered on the line."""
     logs = list_inference_history(
@@ -80,22 +88,27 @@ def query_inference_history(
         limit=limit,
         offset=offset,
         sort_by=sort_by,
-        sort_dir=sort_dir
+        sort_dir=sort_dir,
     )
     return logs
 
-@router.get("/history/{inspection_id}", response_model=InferenceLogSchema, summary="Get inspection details")
+
+@router.get(
+    "/history/{inspection_id}",
+    response_model=InferenceLogSchema,
+    summary="Get inspection details",
+)
 def get_single_inference_detail(inspection_id: str, db: Session = Depends(get_db)):
     """Retrieve complete YOLOv8 detection results, confidence, and context logs for a specific inspection."""
     from app.core.repository import inspection_repo
-    
+
     ins = inspection_repo.get(db, inspection_id)
     if not ins:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Inspection record '{inspection_id}' not found."
+            detail=f"Inspection record '{inspection_id}' not found.",
         )
-        
+
     return {
         "id": ins.id,
         "session_id": ins.session_id,
@@ -116,9 +129,10 @@ def get_single_inference_detail(inspection_id: str, db: Session = Depends(get_db
                     "x1": det.x1,
                     "y1": det.y1,
                     "x2": det.x2,
-                    "y2": det.y2
-                }
+                    "y2": det.y2,
+                },
             }
-            for det in ins.detections if not det.is_deleted
-        ]
+            for det in ins.detections
+            if not det.is_deleted
+        ],
     }

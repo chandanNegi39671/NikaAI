@@ -56,6 +56,7 @@ logger = get_logger(__name__)
 # Pydantic Response Schemas
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class MaintenancePredictionResponse(BaseModel):
     """Serialized shape of a single maintenance prediction."""
 
@@ -121,6 +122,7 @@ router = APIRouter(
 # Internal serializer (avoids duplicate dict building)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _serialize_prediction(pred: MaintenancePrediction) -> dict[str, Any]:
     """Convert a MaintenancePrediction ORM row to a serializable dict."""
     return {
@@ -147,6 +149,7 @@ def _serialize_prediction(pred: MaintenancePrediction) -> dict[str, Any]:
 # Fleet Overview
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @router.get(
     "/fleet",
     summary="Fleet health overview — latest prediction for every machine",
@@ -161,7 +164,9 @@ def get_fleet_overview(db: Session = Depends(get_db)) -> FleetOverviewResponse:
     """
     all_machines = db.query(Machine).filter(Machine.is_deleted == False).all()
     latest_predictions = maintenance_prediction_repo.get_fleet_latest(db)
-    pred_map: dict[str, MaintenancePrediction] = {p.machine_id: p for p in latest_predictions}
+    pred_map: dict[str, MaintenancePrediction] = {
+        p.machine_id: p for p in latest_predictions
+    }
 
     fleet: list[dict[str, Any]] = []
     counts = {"critical": 0, "high": 0, "moderate": 0, "low": 0}
@@ -208,6 +213,7 @@ def get_fleet_overview(db: Session = Depends(get_db)) -> FleetOverviewResponse:
 # Predict (Run Engine)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @router.get(
     "/predict/{machine_id}",
     summary="Run maintenance engine for a machine and persist the result",
@@ -250,6 +256,7 @@ def predict_machine_health(
 # History
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @router.get(
     "/history/{machine_id}",
     summary="Prediction history for a specific machine",
@@ -257,15 +264,21 @@ def predict_machine_health(
 )
 def get_machine_history(
     machine_id: str,
-    limit: int = Query(default=30, ge=1, le=100, description="Max predictions to return"),
+    limit: int = Query(
+        default=30, ge=1, le=100, description="Max predictions to return"
+    ),
     offset: int = Query(default=0, ge=0, description="Pagination offset"),
     db: Session = Depends(get_db),
 ) -> HistoryResponse:
     """Return paginated historical maintenance predictions for one machine."""
-    machine = db.query(Machine).filter(
-        Machine.id == machine_id,
-        Machine.is_deleted == False,
-    ).first()
+    machine = (
+        db.query(Machine)
+        .filter(
+            Machine.id == machine_id,
+            Machine.is_deleted == False,
+        )
+        .first()
+    )
 
     if not machine:
         raise HTTPException(
@@ -289,6 +302,7 @@ def get_machine_history(
 # Full Machine Report
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @router.get(
     "/report/{machine_id}",
     summary="Full maintenance intelligence report for a machine",
@@ -306,10 +320,14 @@ def get_machine_report(
         - Defect type trend (30d) for this machine
         - All unique recommendation codes in history
     """
-    machine = db.query(Machine).filter(
-        Machine.id == machine_id,
-        Machine.is_deleted == False,
-    ).first()
+    machine = (
+        db.query(Machine)
+        .filter(
+            Machine.id == machine_id,
+            Machine.is_deleted == False,
+        )
+        .first()
+    )
 
     if not machine:
         raise HTTPException(
@@ -322,16 +340,16 @@ def get_machine_report(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
-    history = maintenance_prediction_repo.get_history_for_machine(db, machine_id, limit=10)
+    history = maintenance_prediction_repo.get_history_for_machine(
+        db, machine_id, limit=10
+    )
 
     # Defect trend for this machine specifically
     defect_trend = get_defect_type_trend(db, days=30)
 
-    rec_history = list({
-        p.recommendation_code
-        for p in history
-        if p.recommendation_code
-    })
+    rec_history = list(
+        {p.recommendation_code for p in history if p.recommendation_code}
+    )
 
     return {
         "machine_id": machine_id,
@@ -349,6 +367,7 @@ def get_machine_report(
 # ─────────────────────────────────────────────────────────────────────────────
 # Trend Endpoints
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @router.get(
     "/trend/daily",

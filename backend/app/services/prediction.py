@@ -49,6 +49,7 @@ logger = get_logger(__name__)
 # Value Objects (immutable data carriers)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass(frozen=True)
 class BoundingBox:
     """Pixel-space bounding box for one detection.
@@ -158,6 +159,7 @@ class PredictionResult:
 # PredictionService
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class PredictionService:
     """Manages the full lifecycle of the YOLOv8 model.
 
@@ -175,7 +177,7 @@ class PredictionService:
 
     def __init__(self) -> None:
         # Private state — do not access from outside the class
-        self._model: object | None = None      # ultralytics.YOLO instance
+        self._model: object | None = None  # ultralytics.YOLO instance
         self._model_path: Path = settings.model_path
         self._confidence: float = settings.confidence_threshold
         self._is_loaded: bool = False
@@ -242,9 +244,7 @@ class PredictionService:
                 verbose=False,
             )
         except Exception as exc:
-            raise PredictionError(
-                reason=f"Warmup forward pass failed: {exc}"
-            ) from exc
+            raise PredictionError(reason=f"Warmup forward pass failed: {exc}") from exc
 
         logger.info("Model warmup complete. Service is ready.")
 
@@ -411,8 +411,7 @@ class PredictionService:
             InvalidImageError: If ``image.format`` is not in allowed formats.
         """
         allowed: list[str] = [
-            fmt.split("/")[-1].upper()
-            for fmt in settings.allowed_image_formats
+            fmt.split("/")[-1].upper() for fmt in settings.allowed_image_formats
         ]
         pil_format: str = (image.format or "UNKNOWN").upper()
 
@@ -440,9 +439,7 @@ class PredictionService:
                 f"Both sides must be at least {min_dim} px."
             )
 
-    def _run_forward_pass(
-        self, image: Image.Image
-    ) -> tuple[list, float]:
+    def _run_forward_pass(self, image: Image.Image) -> tuple[list, float]:
         """Execute the YOLOv8 model and return raw results + wall-clock time.
 
         Args:
@@ -460,8 +457,8 @@ class PredictionService:
             results = self._model.predict(
                 source=np.array(image),
                 conf=self._confidence,
-                verbose=False,      # suppress ultralytics stdout spam
-                half=True,          # Enable FP16 half precision for performance
+                verbose=False,  # suppress ultralytics stdout spam
+                half=True,  # Enable FP16 half precision for performance
             )
         except Exception as exc:
             raise PredictionError(reason=exc) from exc
@@ -524,10 +521,11 @@ class PredictionService:
 prediction_service: PredictionService = PredictionService()
 
 # ── Background Inference Thread Pool & Status Tracker ──────────────────────────
-from enum import Enum
 import concurrent.futures
-from concurrent.futures import ThreadPoolExecutor
 import uuid
+from concurrent.futures import ThreadPoolExecutor
+from enum import Enum
+
 
 class InferenceJobStatus(str, Enum):
     QUEUED = "queued"
@@ -535,6 +533,7 @@ class InferenceJobStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
 
 @dataclass
 class InferenceJob:
@@ -547,18 +546,21 @@ class InferenceJob:
     completed_at: float | None = None
     error: str | None = None
 
+
 class PredictionExecutor:
     """Manages concurrent YOLOv8 inference requests via a background ThreadPoolExecutor."""
 
     def __init__(self, max_workers: int = 2) -> None:
-        self.executor = ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="yolo-worker")
+        self.executor = ThreadPoolExecutor(
+            max_workers=max_workers, thread_name_prefix="yolo-worker"
+        )
         self.jobs: dict[str, InferenceJob] = {}
 
     def submit(self, image: Image.Image) -> InferenceJob:
         """Submit a PIL image for background defect detection inference."""
         job_id = str(uuid.uuid4())
         created_at = time.time()
-        
+
         def task_wrapper() -> PredictionResult:
             job = self.jobs.get(job_id)
             if job:
@@ -574,7 +576,9 @@ class PredictionExecutor:
                     job.completed_at = time.time()
                 return res
             except Exception as e:
-                logger.error(f"Background prediction failed for job {job_id}: {e}", exc_info=True)
+                logger.error(
+                    f"Background prediction failed for job {job_id}: {e}", exc_info=True
+                )
                 if job:
                     job.status = InferenceJobStatus.FAILED
                     job.progress = 1.0
@@ -588,10 +592,10 @@ class PredictionExecutor:
             status=InferenceJobStatus.QUEUED,
             progress=0.0,
             future=future,
-            created_at=created_at
+            created_at=created_at,
         )
         self.jobs[job_id] = job
-        
+
         # Clean up history to prevent memory leak
         self._cleanup_jobs()
         return job
@@ -619,7 +623,7 @@ class PredictionExecutor:
             "created_at": job.created_at,
             "started_at": job.started_at,
             "completed_at": job.completed_at,
-            "error": job.error
+            "error": job.error,
         }
 
     def _cleanup_jobs(self) -> None:
@@ -628,5 +632,5 @@ class PredictionExecutor:
         cutoff = now - 3600
         self.jobs = {jid: j for jid, j in self.jobs.items() if j.created_at > cutoff}
 
-prediction_executor: PredictionExecutor = PredictionExecutor(max_workers=2)
 
+prediction_executor: PredictionExecutor = PredictionExecutor(max_workers=2)

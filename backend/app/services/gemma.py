@@ -5,14 +5,17 @@ Rule-based defect explanation generator mimicking Gemma LLM reasoning.
 """
 
 from __future__ import annotations
+
 import json
 from dataclasses import dataclass
+
 
 @dataclass
 class GemmaExplanationResult:
     explanation_text: str
     trust_score: float
     explanation_json: str
+
 
 def generate_explanation(defect_class: str) -> GemmaExplanationResult:
     """Generates structured reasoning for visual defects, mimicking a fine-tuned Gemma LLM.
@@ -37,7 +40,7 @@ def generate_explanation(defect_class: str) -> GemmaExplanationResult:
         causes = [
             "Excessive thermal load during processing",
             "High concentration of stress points during metal forming",
-            "Micro-voids in primary raw material stock"
+            "Micro-voids in primary raw material stock",
         ]
         repairability = "Irreparable"
         prevention = "Implement pre-heating step for metal billets and monitor coolant flow rate hourly."
@@ -48,7 +51,7 @@ def generate_explanation(defect_class: str) -> GemmaExplanationResult:
         causes = [
             "Friction against machine guide rails",
             "Robotic grabber misaligned or exerting excessive force",
-            "Abrasive particles in material transport tray"
+            "Abrasive particles in material transport tray",
         ]
         repairability = "Easy"
         prevention = "Install protective rubber sleeve on grippers and vacuum clean work area daily."
@@ -59,10 +62,12 @@ def generate_explanation(defect_class: str) -> GemmaExplanationResult:
         causes = [
             "Incorrect ejector pin pressure on mold",
             "Accidental impact during part ejection stage",
-            "Incorrect clamping pressure alignment"
+            "Incorrect clamping pressure alignment",
         ]
         repairability = "Medium"
-        prevention = "Recalibrate ejector stroke limiters and check hydraulic valve seals."
+        prevention = (
+            "Recalibrate ejector stroke limiters and check hydraulic valve seals."
+        )
         recommended_action = "Check machine pressure gauges, reset hydraulic limiters, and scrap the part if structural integrity is compromised."
         trust_score = 0.91
 
@@ -72,7 +77,7 @@ def generate_explanation(defect_class: str) -> GemmaExplanationResult:
         "causes": causes,
         "repairability": repairability,
         "prevention": prevention,
-        "recommended_action": recommended_action
+        "recommended_action": recommended_action,
     }
 
     explanation_text = (
@@ -87,5 +92,5 @@ def generate_explanation(defect_class: str) -> GemmaExplanationResult:
     return GemmaExplanationResult(
         explanation_text=explanation_text,
         trust_score=trust_score,
-        explanation_json=json.dumps(explanation_dict)
+        explanation_json=json.dumps(explanation_dict),
     )

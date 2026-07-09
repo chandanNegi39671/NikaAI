@@ -11,6 +11,7 @@ This is a convenience wrapper around uvicorn. In production, use:
 """
 
 import uvicorn
+
 from app.core.config import settings
 
 if __name__ == "__main__":

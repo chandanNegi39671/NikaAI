@@ -34,9 +34,11 @@ class Environment(str, Enum):
 # ── Resolve the repository root so paths are stable regardless of CWD ────────
 _BACKEND_ROOT: Path = Path(__file__).resolve().parents[2]
 
+
 def _get_secret(name: str, default: str) -> str:
     """Load secret from Docker/K8s secret file, fallback to environment."""
     import os
+
     secret_path = Path(f"/run/secrets/{name}")
     if secret_path.exists():
         try:
@@ -54,7 +56,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
-        protected_namespaces=(),   # allow model_* field names without warnings
+        protected_namespaces=(),  # allow model_* field names without warnings
     )
 
     # ── Application ───────────────────────────────────────────────────────────
@@ -64,8 +66,12 @@ class Settings(BaseSettings):
     debug: bool = False
     database_url: str = _get_secret("database_url", "sqlite:///./nika.db")
     redis_url: str = _get_secret("redis_url", "redis://localhost:6379/0")
-    celery_broker_url: str = _get_secret("celery_broker_url", "redis://localhost:6379/1")
-    celery_result_backend: str = _get_secret("celery_result_backend", "redis://localhost:6379/2")
+    celery_broker_url: str = _get_secret(
+        "celery_broker_url", "redis://localhost:6379/1"
+    )
+    celery_result_backend: str = _get_secret(
+        "celery_result_backend", "redis://localhost:6379/2"
+    )
 
     # ── JWT Authentication ────────────────────────────────────────────────────
     # No hardcoded fallback: a fixed default baked into source becomes public
@@ -77,7 +83,6 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
-
 
     # ── Server ────────────────────────────────────────────────────────────────
     host: str = "0.0.0.0"
@@ -101,7 +106,7 @@ class Settings(BaseSettings):
 
     # ── Uploads ───────────────────────────────────────────────────────────────
     max_image_bytes: int = 10 * 1024 * 1024  # 10 MB
-    min_image_dimension: int = 32            # pixels — both axes must meet this minimum
+    min_image_dimension: int = 32  # pixels — both axes must meet this minimum
     allowed_image_formats: list[str] = ["image/jpeg", "image/png", "image/webp"]
 
     # ── Logging ───────────────────────────────────────────────────────────────
@@ -144,8 +149,9 @@ class Settings(BaseSettings):
 
     # Dispatch behaviour
     notification_max_retries: int = 3
-    notification_escalation_minutes: int = 15  # unacknowledged critical alerts escalate after this many minutes
-
+    notification_escalation_minutes: int = (
+        15  # unacknowledged critical alerts escalate after this many minutes
+    )
 
     @field_validator("secret_key")
     @classmethod
@@ -158,8 +164,8 @@ class Settings(BaseSettings):
     def enforce_secret_key_in_production(self) -> "Settings":
         """Fail fast rather than silently signing production tokens with a
         throwaway per-process key generated because SECRET_KEY was unset."""
-        has_explicit_secret = (
-            Path("/run/secrets/secret_key").exists() or bool(os.getenv("SECRET_KEY"))
+        has_explicit_secret = Path("/run/secrets/secret_key").exists() or bool(
+            os.getenv("SECRET_KEY")
         )
         if self.env == Environment.PRODUCTION and not has_explicit_secret:
             raise ValueError(

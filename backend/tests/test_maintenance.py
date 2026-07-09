@@ -23,7 +23,6 @@ Test conventions (consistent with conftest.py):
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -34,8 +33,6 @@ from app.models.db_models import (
     Inspection,
     Machine,
     MaintenancePrediction,
-    Worker,
-    Shift,
 )
 from app.services.maintenance_engine import (
     RECOMMENDATIONS,
@@ -53,10 +50,10 @@ from app.services.trend_analysis import (
     get_weekly_trend,
 )
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Fixtures
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture()
 def machine(db_session: Session) -> Machine:
@@ -76,20 +73,24 @@ def machine(db_session: Session) -> Machine:
 def machine_with_low_fail_rate(db_session: Session, machine: Machine) -> Machine:
     """Seed 20 inspections — 1 FAIL (5% defect rate → low risk)."""
     for i in range(19):
-        db_session.add(Inspection(
+        db_session.add(
+            Inspection(
+                machine_id=machine.id,
+                status="PASS",
+                confidence=0.92,
+                latency_ms=30.0,
+                inference_time_ms=28.0,
+            )
+        )
+    db_session.add(
+        Inspection(
             machine_id=machine.id,
-            status="PASS",
-            confidence=0.92,
-            latency_ms=30.0,
-            inference_time_ms=28.0,
-        ))
-    db_session.add(Inspection(
-        machine_id=machine.id,
-        status="FAIL",
-        confidence=0.55,
-        latency_ms=45.0,
-        inference_time_ms=42.0,
-    ))
+            status="FAIL",
+            confidence=0.55,
+            latency_ms=45.0,
+            inference_time_ms=42.0,
+        )
+    )
     db_session.flush()
     return machine
 
@@ -98,21 +99,25 @@ def machine_with_low_fail_rate(db_session: Session, machine: Machine) -> Machine
 def machine_with_high_fail_rate(db_session: Session, machine: Machine) -> Machine:
     """Seed 10 inspections — 6 FAIL (60% defect rate → critical risk)."""
     for i in range(4):
-        db_session.add(Inspection(
-            machine_id=machine.id,
-            status="PASS",
-            confidence=0.80,
-            latency_ms=35.0,
-            inference_time_ms=32.0,
-        ))
+        db_session.add(
+            Inspection(
+                machine_id=machine.id,
+                status="PASS",
+                confidence=0.80,
+                latency_ms=35.0,
+                inference_time_ms=32.0,
+            )
+        )
     for i in range(6):
-        db_session.add(Inspection(
-            machine_id=machine.id,
-            status="FAIL",
-            confidence=0.50,
-            latency_ms=50.0,
-            inference_time_ms=48.0,
-        ))
+        db_session.add(
+            Inspection(
+                machine_id=machine.id,
+                status="FAIL",
+                confidence=0.50,
+                latency_ms=50.0,
+                inference_time_ms=48.0,
+            )
+        )
     db_session.flush()
     return machine
 
@@ -120,6 +125,7 @@ def machine_with_high_fail_rate(db_session: Session, machine: Machine) -> Machin
 # ─────────────────────────────────────────────────────────────────────────────
 # Unit Tests — Health Score
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestHealthScore:
     def test_perfect_health(self):
@@ -150,6 +156,7 @@ class TestHealthScore:
 # Unit Tests — Risk Classification
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestRiskClassification:
     def test_low_risk(self):
         assert _classify_risk(0.05) == "low"
@@ -176,6 +183,7 @@ class TestRiskClassification:
 # ─────────────────────────────────────────────────────────────────────────────
 # Unit Tests — Recommendation Engine
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestRecommendationEngine:
     def test_critical_always_gets_replace_component(self):
@@ -217,12 +225,17 @@ class TestRecommendationEngine:
 # Integration Tests — Maintenance Engine
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestMaintenanceEngine:
     def test_unknown_machine_raises_value_error(self, db_session: Session):
         with pytest.raises(ValueError, match="not found"):
-            run_maintenance_engine(db_session, "nonexistent-machine-id", skip_persist=True)
+            run_maintenance_engine(
+                db_session, "nonexistent-machine-id", skip_persist=True
+            )
 
-    def test_no_inspections_returns_nominal(self, db_session: Session, machine: Machine):
+    def test_no_inspections_returns_nominal(
+        self, db_session: Session, machine: Machine
+    ):
         result = run_maintenance_engine(db_session, machine.id, skip_persist=True)
         assert result["health_score"] == 100.0
         assert result["risk_level"] == "low"
@@ -230,32 +243,56 @@ class TestMaintenanceEngine:
         assert result["recommendation_code"] == "continue_monitoring"
         assert result["trend"] == "stable"
 
-    def test_low_fail_rate_gives_low_risk(self, db_session: Session, machine_with_low_fail_rate: Machine):
-        result = run_maintenance_engine(db_session, machine_with_low_fail_rate.id, skip_persist=True)
+    def test_low_fail_rate_gives_low_risk(
+        self, db_session: Session, machine_with_low_fail_rate: Machine
+    ):
+        result = run_maintenance_engine(
+            db_session, machine_with_low_fail_rate.id, skip_persist=True
+        )
         assert result["risk_level"] == "low"
         assert result["health_score"] > 70.0
         assert result["rul_days"] == 180
 
-    def test_high_fail_rate_gives_critical_risk(self, db_session: Session, machine_with_high_fail_rate: Machine):
-        result = run_maintenance_engine(db_session, machine_with_high_fail_rate.id, skip_persist=True)
+    def test_high_fail_rate_gives_critical_risk(
+        self, db_session: Session, machine_with_high_fail_rate: Machine
+    ):
+        result = run_maintenance_engine(
+            db_session, machine_with_high_fail_rate.id, skip_persist=True
+        )
         assert result["risk_level"] == "critical"
         assert result["health_score"] < 50.0
         assert result["rul_days"] == 5
         assert result["priority"] == "urgent"
 
-    def test_result_contains_all_required_keys(self, db_session: Session, machine: Machine):
+    def test_result_contains_all_required_keys(
+        self, db_session: Session, machine: Machine
+    ):
         result = run_maintenance_engine(db_session, machine.id, skip_persist=True)
         required_keys = [
-            "machine_id", "machine_name", "health_score", "risk_level", "rul_days",
-            "defect_rate", "recommendation", "recommendation_code", "priority",
-            "trend", "total_inspections", "failed_inspections",
-            "next_maintenance_date", "computed_at",
+            "machine_id",
+            "machine_name",
+            "health_score",
+            "risk_level",
+            "rul_days",
+            "defect_rate",
+            "recommendation",
+            "recommendation_code",
+            "priority",
+            "trend",
+            "total_inspections",
+            "failed_inspections",
+            "next_maintenance_date",
+            "computed_at",
         ]
         for key in required_keys:
             assert key in result, f"Missing key: {key}"
 
-    def test_persist_creates_db_row(self, db_session: Session, machine_with_low_fail_rate: Machine):
-        run_maintenance_engine(db_session, machine_with_low_fail_rate.id, skip_persist=False)
+    def test_persist_creates_db_row(
+        self, db_session: Session, machine_with_low_fail_rate: Machine
+    ):
+        run_maintenance_engine(
+            db_session, machine_with_low_fail_rate.id, skip_persist=False
+        )
         pred = maintenance_prediction_repo.get_latest_for_machine(
             db_session, machine_with_low_fail_rate.id
         )
@@ -263,14 +300,19 @@ class TestMaintenanceEngine:
         assert pred.machine_id == machine_with_low_fail_rate.id
         assert pred.health_score > 0.0
 
-    def test_trend_is_stable_on_first_run(self, db_session: Session, machine_with_low_fail_rate: Machine):
-        result = run_maintenance_engine(db_session, machine_with_low_fail_rate.id, skip_persist=True)
+    def test_trend_is_stable_on_first_run(
+        self, db_session: Session, machine_with_low_fail_rate: Machine
+    ):
+        result = run_maintenance_engine(
+            db_session, machine_with_low_fail_rate.id, skip_persist=True
+        )
         assert result["trend"] == "stable"  # no prior prediction exists
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Integration Tests — Trend Analysis
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestTrendAnalysis:
     def test_daily_trend_returns_correct_number_of_days(self, db_session: Session):
@@ -297,7 +339,9 @@ class TestTrendAnalysis:
         result = get_defect_type_trend(db_session, days=30)
         assert isinstance(result, list)
 
-    def test_machine_failure_trend_structure(self, db_session: Session, machine: Machine):
+    def test_machine_failure_trend_structure(
+        self, db_session: Session, machine: Machine
+    ):
         result = get_machine_failure_trend(db_session, days=30)
         assert isinstance(result, list)
         for entry in result:
@@ -308,8 +352,13 @@ class TestTrendAnalysis:
     def test_trend_summary_has_required_keys(self, db_session: Session):
         summary = get_trend_summary(db_session, days=7)
         required = [
-            "period_days", "total_inspections", "failed_inspections",
-            "pass_rate", "avg_confidence", "machines_at_risk", "total_machines",
+            "period_days",
+            "total_inspections",
+            "failed_inspections",
+            "pass_rate",
+            "avg_confidence",
+            "machines_at_risk",
+            "total_machines",
         ]
         for key in required:
             assert key in summary, f"Missing key: {key}"
@@ -322,6 +371,7 @@ class TestTrendAnalysis:
 # ─────────────────────────────────────────────────────────────────────────────
 # Repository Tests
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class TestMaintenancePredictionRepository:
     def _make_prediction(
@@ -348,11 +398,15 @@ class TestMaintenancePredictionRepository:
     def test_get_latest_for_machine(self, db_session: Session, machine: Machine):
         self._make_prediction(db_session, machine, health_score=90.0)
         self._make_prediction(db_session, machine, health_score=75.0)  # newer
-        latest = maintenance_prediction_repo.get_latest_for_machine(db_session, machine.id)
+        latest = maintenance_prediction_repo.get_latest_for_machine(
+            db_session, machine.id
+        )
         assert latest is not None
         assert latest.health_score == 75.0  # most recently added
 
-    def test_get_history_for_machine_respects_limit(self, db_session: Session, machine: Machine):
+    def test_get_history_for_machine_respects_limit(
+        self, db_session: Session, machine: Machine
+    ):
         for _ in range(5):
             self._make_prediction(db_session, machine)
         history = maintenance_prediction_repo.get_history_for_machine(
@@ -360,8 +414,12 @@ class TestMaintenancePredictionRepository:
         )
         assert len(history) == 3
 
-    def test_get_latest_returns_none_when_no_predictions(self, db_session: Session, machine: Machine):
-        result = maintenance_prediction_repo.get_latest_for_machine(db_session, machine.id)
+    def test_get_latest_returns_none_when_no_predictions(
+        self, db_session: Session, machine: Machine
+    ):
+        result = maintenance_prediction_repo.get_latest_for_machine(
+            db_session, machine.id
+        )
         assert result is None
 
     def test_count_by_risk_level(self, db_session: Session, machine: Machine):
@@ -376,6 +434,7 @@ class TestMaintenancePredictionRepository:
 # API Tests
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class TestMaintenanceAPI:
     def test_fleet_requires_auth(self, client: TestClient):
         resp = client.get("/api/v1/maintenance/fleet")
@@ -389,41 +448,63 @@ class TestMaintenanceAPI:
         assert "fleet" in data
         assert isinstance(data["fleet"], list)
 
-    def test_predict_returns_404_for_unknown_machine(self, client: TestClient, admin_headers: dict):
-        resp = client.get("/api/v1/maintenance/predict/nonexistent-id", headers=admin_headers)
+    def test_predict_returns_404_for_unknown_machine(
+        self, client: TestClient, admin_headers: dict
+    ):
+        resp = client.get(
+            "/api/v1/maintenance/predict/nonexistent-id", headers=admin_headers
+        )
         assert resp.status_code == 404
 
     def test_predict_returns_ok_for_valid_machine(
-        self, client: TestClient, admin_headers: dict, db_session: Session, machine: Machine
+        self,
+        client: TestClient,
+        admin_headers: dict,
+        db_session: Session,
+        machine: Machine,
     ):
-        resp = client.get(f"/api/v1/maintenance/predict/{machine.id}", headers=admin_headers)
+        resp = client.get(
+            f"/api/v1/maintenance/predict/{machine.id}", headers=admin_headers
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["machine_id"] == machine.id
         assert "health_score" in data
         assert 0.0 <= data["health_score"] <= 100.0
 
-    def test_history_returns_404_for_unknown_machine(self, client: TestClient, admin_headers: dict):
-        resp = client.get("/api/v1/maintenance/history/nonexistent-id", headers=admin_headers)
+    def test_history_returns_404_for_unknown_machine(
+        self, client: TestClient, admin_headers: dict
+    ):
+        resp = client.get(
+            "/api/v1/maintenance/history/nonexistent-id", headers=admin_headers
+        )
         assert resp.status_code == 404
 
     def test_history_returns_empty_list_when_no_predictions(
         self, client: TestClient, admin_headers: dict, machine: Machine
     ):
-        resp = client.get(f"/api/v1/maintenance/history/{machine.id}", headers=admin_headers)
+        resp = client.get(
+            f"/api/v1/maintenance/history/{machine.id}", headers=admin_headers
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["total"] == 0
         assert data["predictions"] == []
 
-    def test_report_returns_404_for_unknown_machine(self, client: TestClient, admin_headers: dict):
-        resp = client.get("/api/v1/maintenance/report/nonexistent-id", headers=admin_headers)
+    def test_report_returns_404_for_unknown_machine(
+        self, client: TestClient, admin_headers: dict
+    ):
+        resp = client.get(
+            "/api/v1/maintenance/report/nonexistent-id", headers=admin_headers
+        )
         assert resp.status_code == 404
 
     def test_report_returns_ok_for_valid_machine(
         self, client: TestClient, admin_headers: dict, machine: Machine
     ):
-        resp = client.get(f"/api/v1/maintenance/report/{machine.id}", headers=admin_headers)
+        resp = client.get(
+            f"/api/v1/maintenance/report/{machine.id}", headers=admin_headers
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert "current_health" in data
@@ -431,42 +512,58 @@ class TestMaintenanceAPI:
         assert "defect_trend" in data
 
     def test_daily_trend_returns_list(self, client: TestClient, admin_headers: dict):
-        resp = client.get("/api/v1/maintenance/trend/daily?days=7", headers=admin_headers)
+        resp = client.get(
+            "/api/v1/maintenance/trend/daily?days=7", headers=admin_headers
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list)
         assert len(data) == 7
 
     def test_weekly_trend_returns_list(self, client: TestClient, admin_headers: dict):
-        resp = client.get("/api/v1/maintenance/trend/weekly?weeks=4", headers=admin_headers)
+        resp = client.get(
+            "/api/v1/maintenance/trend/weekly?weeks=4", headers=admin_headers
+        )
         assert resp.status_code == 200
         assert len(resp.json()) == 4
 
     def test_monthly_trend_returns_list(self, client: TestClient, admin_headers: dict):
-        resp = client.get("/api/v1/maintenance/trend/monthly?months=3", headers=admin_headers)
+        resp = client.get(
+            "/api/v1/maintenance/trend/monthly?months=3", headers=admin_headers
+        )
         assert resp.status_code == 200
         assert len(resp.json()) == 3
 
     def test_defect_trend_returns_list(self, client: TestClient, admin_headers: dict):
-        resp = client.get("/api/v1/maintenance/trend/defects?days=30", headers=admin_headers)
+        resp = client.get(
+            "/api/v1/maintenance/trend/defects?days=30", headers=admin_headers
+        )
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 
     def test_machine_trend_returns_list(self, client: TestClient, admin_headers: dict):
-        resp = client.get("/api/v1/maintenance/trend/machines?days=30", headers=admin_headers)
+        resp = client.get(
+            "/api/v1/maintenance/trend/machines?days=30", headers=admin_headers
+        )
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 
     def test_trend_summary_returns_dict(self, client: TestClient, admin_headers: dict):
-        resp = client.get("/api/v1/maintenance/trend/summary?days=7", headers=admin_headers)
+        resp = client.get(
+            "/api/v1/maintenance/trend/summary?days=7", headers=admin_headers
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert "total_inspections" in data
         assert "machines_at_risk" in data
 
-    def test_operator_can_predict(self, client: TestClient, operator_headers: dict, machine: Machine):
+    def test_operator_can_predict(
+        self, client: TestClient, operator_headers: dict, machine: Machine
+    ):
         """Operators have inspection:read — can trigger engine."""
-        resp = client.get(f"/api/v1/maintenance/predict/{machine.id}", headers=operator_headers)
+        resp = client.get(
+            f"/api/v1/maintenance/predict/{machine.id}", headers=operator_headers
+        )
         assert resp.status_code == 200
 
     def test_operator_can_read_fleet(self, client: TestClient, operator_headers: dict):
@@ -476,7 +573,11 @@ class TestMaintenanceAPI:
         resp = client.get("/api/v1/maintenance/fleet", headers=operator_headers)
         assert resp.status_code == 403
 
-    def test_viewer_cannot_predict(self, client: TestClient, viewer_headers: dict, machine: Machine):
+    def test_viewer_cannot_predict(
+        self, client: TestClient, viewer_headers: dict, machine: Machine
+    ):
         """Viewers do not have inspection:read permission."""
-        resp = client.get(f"/api/v1/maintenance/predict/{machine.id}", headers=viewer_headers)
+        resp = client.get(
+            f"/api/v1/maintenance/predict/{machine.id}", headers=viewer_headers
+        )
         assert resp.status_code == 403

@@ -4,22 +4,26 @@ backend/app/api/endpoints/audit_logs.py
 Endpoints for querying and filtering compliance audit trail events.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
 from typing import List, Optional
 
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.core.auth import PermissionChecker
 from app.core.database import get_db
 from app.services.audit_log_service import list_audit_logs
-from app.core.auth import PermissionChecker
 
 router = APIRouter(
     prefix="/api/v1/audit",
     tags=["Compliance Audit"],
-    dependencies=[Depends(PermissionChecker("analytics:read"))] # Admin / Supervisor roles
+    dependencies=[
+        Depends(PermissionChecker("analytics:read"))
+    ],  # Admin / Supervisor roles
 )
 
 # ── Pydantic Schemas ──────────────────────────────────────────────────────────
+
 
 class AuditLogItemSchema(BaseModel):
     id: str
@@ -35,6 +39,7 @@ class AuditLogItemSchema(BaseModel):
     request_id: Optional[str] = None
     created_at: Optional[str] = None
 
+
 class AuditLogsResponse(BaseModel):
     total: int
     results: List[AuditLogItemSchema]
@@ -43,6 +48,7 @@ class AuditLogsResponse(BaseModel):
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+
 
 @router.get("", response_model=AuditLogsResponse, summary="Query compliance logs")
 def query_audit_logs(
@@ -55,7 +61,7 @@ def query_audit_logs(
     request_id: Optional[str] = None,
     limit: int = 20,
     offset: int = 0,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Retrieve compliance operations log items. Access is restricted to Supervisor / Admin roles."""
     logs = list_audit_logs(
@@ -68,6 +74,6 @@ def query_audit_logs(
         entity_type=entity_type,
         request_id=request_id,
         limit=limit,
-        offset=offset
+        offset=offset,
     )
     return logs

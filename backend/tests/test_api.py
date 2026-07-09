@@ -1,8 +1,9 @@
-import pytest
 from fastapi.testclient import TestClient
+
 from app.main import app
 
 client = TestClient(app)
+
 
 def test_health_check():
     response = client.get("/api/v1/health")
@@ -10,6 +11,7 @@ def test_health_check():
     data = response.json()
     assert "status" in data
     assert data["status"] in ["healthy", "degraded"]
+
 
 def test_login_missing_credentials():
     response = client.post("/api/v1/auth/login", data={})

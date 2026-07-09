@@ -4,15 +4,17 @@ backend/app/core/events.py
 Event Bus pattern for decoupled event publishing and subscribing (pub-sub).
 """
 
-from typing import Callable, List, Dict
 import asyncio
+from typing import Callable, Dict, List
+
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 class EventBus:
     """Central event broker for Nika AI."""
-    
+
     def __init__(self) -> None:
         self._subscribers: Dict[str, List[Callable]] = {}
 
@@ -47,38 +49,49 @@ class EventBus:
                 else:
                     # Run synchronous handler in a daemon thread
                     import threading
-                    threading.Thread(target=handler, args=(payload,), daemon=True).start()
+
+                    threading.Thread(
+                        target=handler, args=(payload,), daemon=True
+                    ).start()
             except Exception as exc:
                 logger.error(f"Error executing event handler for '{event_name}': {exc}")
+
 
 event_bus = EventBus()
 
 # ── Register default handlers ──────────────────────────────────────────────────
 
+
 def handle_prediction_finished_analytics(payload: dict):
     """Event handler to update live analytics when a prediction finishes."""
     logger.info("EventBus: Updating analytics snapshot for completed prediction.")
+
 
 def handle_prediction_finished_notifications(payload: dict):
     """Event handler to dispatch critical warnings if prediction contained defects."""
     status = payload.get("status")
     if status == "FAIL":
         try:
-            from app.services.notifications import NotificationService
-            from app.core.database import SessionLocal
             import asyncio
+
+            from app.core.database import SessionLocal
+            from app.services.notifications import NotificationService
+
             db = SessionLocal()
             try:
-                asyncio.run(NotificationService.trigger_defect_alerts(
-                    db=db,
-                    defect_type=payload.get("defect_type", "Unknown"),
-                    confidence=payload.get("confidence", 0.0),
-                    machine_name=payload.get("machine_name", "Unknown"),
-                ))
+                asyncio.run(
+                    NotificationService.trigger_defect_alerts(
+                        db=db,
+                        defect_type=payload.get("defect_type", "Unknown"),
+                        confidence=payload.get("confidence", 0.0),
+                        machine_name=payload.get("machine_name", "Unknown"),
+                    )
+                )
             finally:
                 db.close()
         except Exception as exc:
             logger.error(f"EventBus Notification handler failed: {exc}")
+
 
 # Register listeners
 event_bus.subscribe("prediction_finished", handle_prediction_finished_analytics)

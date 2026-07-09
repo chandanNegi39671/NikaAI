@@ -19,10 +19,9 @@ import pytest
 from app.core.config import settings
 from app.models.db_models import Notification
 from app.services.notifications import NotificationService
-from tests.conftest import auth_headers
-
 
 # ── Service-level tests ─────────────────────────────────────────────────────
+
 
 def test_unconfigured_channel_is_recorded_as_failed_not_fake_success(db_session):
     """A channel with no credentials must not report success."""
@@ -41,7 +40,9 @@ def test_unconfigured_channel_is_recorded_as_failed_not_fake_success(db_session)
     assert record.status == "failed"
     assert "not configured" in record.last_error.lower()
     # And it's actually persisted, not just an in-memory object.
-    fetched = db_session.query(Notification).filter(Notification.id == record.id).first()
+    fetched = (
+        db_session.query(Notification).filter(Notification.id == record.id).first()
+    )
     assert fetched is not None
     assert fetched.status == "failed"
 
@@ -50,8 +51,12 @@ def test_dispatch_rejects_invalid_priority(db_session):
     with pytest.raises(ValueError):
         asyncio.run(
             NotificationService.dispatch(
-                db_session, event_type="x", title="t", message="m",
-                channels=["slack"], priority="urgent-ish",
+                db_session,
+                event_type="x",
+                title="t",
+                message="m",
+                channels=["slack"],
+                priority="urgent-ish",
             )
         )
 
@@ -60,7 +65,10 @@ def test_dispatch_rejects_unknown_channel(db_session):
     with pytest.raises(ValueError):
         asyncio.run(
             NotificationService.dispatch(
-                db_session, event_type="x", title="t", message="m",
+                db_session,
+                event_type="x",
+                title="t",
+                message="m",
                 channels=["carrier_pigeon"],
             )
         )
@@ -143,8 +151,13 @@ def test_webhook_channel_gives_up_after_max_retries(db_session, monkeypatch):
 def test_acknowledge_sets_fields_and_stops_reescalation(db_session, admin_user):
     results = asyncio.run(
         NotificationService.dispatch(
-            db_session, event_type="critical_defect", title="t", message="m",
-            channels=["slack"], priority="critical", requires_ack=True,
+            db_session,
+            event_type="critical_defect",
+            title="t",
+            message="m",
+            channels=["slack"],
+            priority="critical",
+            requires_ack=True,
         )
     )
     record = results[0]
@@ -162,8 +175,13 @@ def test_acknowledge_sets_fields_and_stops_reescalation(db_session, admin_user):
 def test_escalation_only_fires_after_window_and_only_once(db_session):
     results = asyncio.run(
         NotificationService.dispatch(
-            db_session, event_type="critical_defect", title="t", message="m",
-            channels=["slack"], priority="critical", requires_ack=True,
+            db_session,
+            event_type="critical_defect",
+            title="t",
+            message="m",
+            channels=["slack"],
+            priority="critical",
+            requires_ack=True,
         )
     )
     record = results[0]
@@ -181,7 +199,9 @@ def test_escalation_only_fires_after_window_and_only_once(db_session):
     pending = NotificationService.get_unacknowledged_for_escalation(db_session)
     assert record.id in [p.id for p in pending]
 
-    escalated_count = asyncio.run(NotificationService.escalate_unacknowledged(db_session))
+    escalated_count = asyncio.run(
+        NotificationService.escalate_unacknowledged(db_session)
+    )
     assert escalated_count == 1
     db_session.refresh(record)
     assert record.escalated_at is not None
@@ -193,6 +213,7 @@ def test_escalation_only_fires_after_window_and_only_once(db_session):
 
 # ── API tests ────────────────────────────────────────────────────────────────
 
+
 def test_list_notifications_requires_auth(client):
     resp = client.get("/api/v1/notifications")
     assert resp.status_code == 401
@@ -201,14 +222,22 @@ def test_list_notifications_requires_auth(client):
 def test_list_and_filter_notifications(client, db_session, admin_headers):
     asyncio.run(
         NotificationService.dispatch(
-            db_session, event_type="critical_defect", title="A", message="m",
-            channels=["slack"], priority="critical",
+            db_session,
+            event_type="critical_defect",
+            title="A",
+            message="m",
+            channels=["slack"],
+            priority="critical",
         )
     )
     asyncio.run(
         NotificationService.dispatch(
-            db_session, event_type="machine_offline", title="B", message="m",
-            channels=["slack"], priority="low",
+            db_session,
+            event_type="machine_offline",
+            title="B",
+            message="m",
+            channels=["slack"],
+            priority="low",
         )
     )
 
@@ -217,7 +246,9 @@ def test_list_and_filter_notifications(client, db_session, admin_headers):
     body = resp.json()
     assert body["total"] >= 2
 
-    resp_filtered = client.get("/api/v1/notifications?priority=critical", headers=admin_headers)
+    resp_filtered = client.get(
+        "/api/v1/notifications?priority=critical", headers=admin_headers
+    )
     assert resp_filtered.status_code == 200
     assert all(item["priority"] == "critical" for item in resp_filtered.json()["items"])
 
@@ -225,17 +256,26 @@ def test_list_and_filter_notifications(client, db_session, admin_headers):
 def test_acknowledge_endpoint(client, db_session, admin_headers):
     results = asyncio.run(
         NotificationService.dispatch(
-            db_session, event_type="critical_defect", title="A", message="m",
-            channels=["slack"], priority="critical", requires_ack=True,
+            db_session,
+            event_type="critical_defect",
+            title="A",
+            message="m",
+            channels=["slack"],
+            priority="critical",
+            requires_ack=True,
         )
     )
     notif_id = results[0].id
 
-    resp = client.post(f"/api/v1/notifications/{notif_id}/acknowledge", headers=admin_headers)
+    resp = client.post(
+        f"/api/v1/notifications/{notif_id}/acknowledge", headers=admin_headers
+    )
     assert resp.status_code == 200
     assert resp.json()["acknowledged_at"] is not None
 
 
 def test_acknowledge_nonexistent_notification_returns_404(client, admin_headers):
-    resp = client.post("/api/v1/notifications/does-not-exist/acknowledge", headers=admin_headers)
+    resp = client.post(
+        "/api/v1/notifications/does-not-exist/acknowledge", headers=admin_headers
+    )
     assert resp.status_code == 404

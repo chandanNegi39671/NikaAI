@@ -30,10 +30,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Base Exception
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class NikaAIError(Exception):
     """Base class for all Nika AI application exceptions.
@@ -53,6 +53,7 @@ class NikaAIError(Exception):
 # ─────────────────────────────────────────────────────────────────────────────
 # Model Exceptions
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class ModelNotFoundError(NikaAIError):
     """Raised when the model weights file does not exist on disk.
@@ -121,6 +122,7 @@ class ModelLoadError(NikaAIError):
 # Image Exceptions
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class InvalidImageError(NikaAIError):
     """Raised when an uploaded image fails validation checks.
 
@@ -142,6 +144,7 @@ class InvalidImageError(NikaAIError):
 # ─────────────────────────────────────────────────────────────────────────────
 # Inference Exceptions
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 class PredictionError(NikaAIError):
     """Raised when YOLOv8 inference fails at runtime.

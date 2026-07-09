@@ -6,13 +6,16 @@ Global middleware for Nika AI.
 
 import time
 import uuid
+
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 
 
 class SecurityMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         start_time = time.perf_counter()
 
         # Generate or use existing Request ID
@@ -32,7 +35,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
 
         # Use a relaxed CSP for Swagger/ReDoc doc pages so that unpkg.com
         # assets (JS, CSS) can load. All other routes get the strict policy.
@@ -62,12 +67,21 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         # Track HTTP request metrics and system performance metrics
         try:
-            from app.core.metrics import REQUEST_COUNT, REQUEST_LATENCY, update_system_metrics
+            from app.core.metrics import (
+                REQUEST_COUNT,
+                REQUEST_LATENCY,
+                update_system_metrics,
+            )
+
             method = request.method
             endpoint = request.url.path
             if endpoint != "/metrics":
-                REQUEST_COUNT.labels(method=method, endpoint=endpoint, status=response.status_code).inc()
-                REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(process_time)
+                REQUEST_COUNT.labels(
+                    method=method, endpoint=endpoint, status=response.status_code
+                ).inc()
+                REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(
+                    process_time
+                )
             update_system_metrics()
         except Exception:
             pass
