@@ -10,6 +10,7 @@
 # ── Web Framework ─────────────────────────────────────────────────────────────
 fastapi==0.111.0
 uvicorn[standard]==0.30.1
+gunicorn==22.0.0                 # Process manager — forks before PyTorch loads (safe fork)
 python-multipart==0.0.7          # Required for UploadFile support in FastAPI
 
 # ── Data Validation & Settings ────────────────────────────────────────────────

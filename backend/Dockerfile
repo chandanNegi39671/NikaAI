@@ -84,5 +84,14 @@ HEALTHCHECK --interval=30s \
             --retries=3 \
 CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
-# Start FastAPI
-CMD ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000","--workers","2"]
+# Start FastAPI via Gunicorn + UvicornWorker
+# Using Gunicorn as process manager so worker processes are forked BEFORE
+# PyTorch / YOLO is imported. This avoids CUDA context corruption and thread
+# lock deadlocks that occur when forking after torch initialisation.
+CMD ["gunicorn", "app.main:app", \
+     "--worker-class", "uvicorn.workers.UvicornWorker", \
+     "--workers", "2", \
+     "--bind", "0.0.0.0:8000", \
+     "--timeout", "120", \
+     "--keep-alive", "5", \
+     "--log-level", "info"]

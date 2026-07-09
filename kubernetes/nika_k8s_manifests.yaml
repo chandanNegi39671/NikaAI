@@ -88,10 +88,10 @@ spec:
           resources:
             requests:
               cpu: "250m"
-              memory: "512Mi"
+              memory: "1Gi"   # Increased from 512Mi — torch+ultralytics+opencv can hit 1.5GB
             limits:
               cpu: "1000m"
-              memory: "2Gi"
+              memory: "3Gi"   # Increased from 2Gi — gives headroom above OOM threshold
           envFrom:
             - configMapRef:
                 name: nika-config

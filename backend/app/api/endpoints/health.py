@@ -29,7 +29,7 @@ from __future__ import annotations
 import time
 from datetime import datetime, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
@@ -63,8 +63,7 @@ class HealthResponse(BaseModel):
     """
 
     status: str = Field(
-        default="healthy",
-        description="Always 'healthy' while the process is alive.",
+        description="'healthy' when model is loaded and ready; 'degraded' when model is not loaded.",
         examples=["healthy"],
     )
     service: str = Field(
@@ -142,13 +141,13 @@ def _format_uptime(elapsed_seconds: float) -> str:
     summary="Health check",
     description=(
         "Liveness and readiness probe. "
-        "Returns HTTP 200 as long as the process is alive. "
-        "Inspect `model_loaded` to determine if the service is ready to "
-        "accept inference requests."
+        "Returns HTTP 200 when the model is loaded and ready. "
+        "Returns HTTP 503 when the model failed to load — this triggers "
+        "Kubernetes readiness/liveness probe failures and container restarts."
     ),
     responses={
         200: {
-            "description": "Service is alive (may not be ready if model_loaded=false).",
+            "description": "Service is alive and model is loaded.",
             "content": {
                 "application/json": {
                     "example": {
@@ -160,35 +159,66 @@ def _format_uptime(elapsed_seconds: float) -> str:
                     }
                 }
             },
-        }
+        },
+        503: {
+            "description": "Model not loaded — service is degraded and not ready to serve inference.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "degraded",
+                        "service": "Nika AI Backend",
+                        "version": "1.0.0",
+                        "model_loaded": False,
+                        "uptime": "0d 00h 00m 12s",
+                    }
+                }
+            },
+        },
     },
 )
 async def health_check() -> HealthResponse:
     """Return liveness and readiness information.
 
-    This endpoint is intentionally kept fast and dependency-free (no DB,
-    no external calls) so that load-balancers can probe it at high frequency
-    without adding latency to inference requests.
+    Returns HTTP 200 when the YOLO model is loaded and ready to serve.
+    Returns HTTP 503 when the model is not loaded — this surfaces the failure
+    to Docker / Kubernetes health probes so the container is restarted rather
+    than silently left in a broken state.
+
+    The endpoint intentionally has no DB or external calls so probes are fast.
     """
     elapsed = time.monotonic() - _SERVER_START_TIME
+    model_loaded = prediction_service.is_loaded
 
-    response = HealthResponse(
-        status="healthy",
+    response_body = HealthResponse(
+        status="healthy" if model_loaded else "degraded",
         service=settings.app_name,
         version=settings.app_version,
-        model_loaded=prediction_service.is_loaded,
+        model_loaded=model_loaded,
         uptime=_format_uptime(elapsed),
     )
+
+    http_status = 200 if model_loaded else 503
 
     logger.debug(
         "Health check requested.",
         extra={
-            "model_loaded": response.model_loaded,
-            "uptime": response.uptime,
+            "model_loaded": model_loaded,
+            "uptime": response_body.uptime,
+            "http_status": http_status,
         },
     )
 
-    return response
+    if http_status == 503:
+        # Return a raw Response so we can set the 503 status code.
+        # FastAPI's response_model only applies to the 200 path above.
+        import json as _json
+        return Response(
+            content=_json.dumps(response_body.model_dump()),
+            status_code=503,
+            media_type="application/json",
+        )
+
+    return response_body
 
 
 @router.get(

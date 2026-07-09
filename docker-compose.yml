@@ -39,7 +39,9 @@ services:
       dockerfile: Dockerfile
     volumes:
       - uploads_data:/app/static/uploads
-      - model_data:/app/app/models
+      # NOTE: Do NOT mount a volume over /app/app/models — the model file
+      # (best.pt) is baked into the image at build time. Mounting a named
+      # volume here would shadow the image layer and hide best.pt on first run.
       - logs_data:/app/logs
     environment:
       <<: *backend-env
@@ -64,7 +66,7 @@ services:
     command: celery -A app.core.celery_app.celery_app worker --loglevel=info --concurrency=2 -Q default
     volumes:
       - uploads_data:/app/static/uploads
-      - model_data:/app/app/models
+      # NOTE: Do NOT mount a volume over /app/app/models — same reason as backend.
       - logs_data:/app/logs
     environment:
       <<: *backend-env
@@ -125,5 +127,5 @@ volumes:
   postgres_data:
   redis_data:
   uploads_data:
-  model_data:
+  # model_data volume removed — model is baked into the image, not persisted externally.
   logs_data:
