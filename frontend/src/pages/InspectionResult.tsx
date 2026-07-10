@@ -86,18 +86,27 @@ export default function InspectionResult() {
     notify.success('JSON Report downloaded successfully!')
   }
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!lastResult.id) {
       notify.error('Cannot generate PDF: No database record found.')
       return
     }
-    const link = document.createElement('a')
-    link.href = `/api/v1/analytics/report/pdf/${lastResult.id}`
-    link.setAttribute('download', `inspection_report_${lastResult.id}.pdf`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    notify.success('PDF report download initiated!')
+    const token = localStorage.getItem('nika_token')
+    const res = await fetch(`/api/v1/analytics/report/pdf/${lastResult.id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    if (!res.ok) {
+      notify.error('PDF failed: ' + await res.text())
+      return
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `inspection_report_${lastResult.id}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+    notify.success('PDF report downloaded!')
   }
 
   return (
