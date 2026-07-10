@@ -282,7 +282,7 @@ def _decode_pil_image(raw: bytes, filename: str) -> Image.Image:
     except Exception as exc:
         logger.warning(
             "Unexpected error while decoding image.",
-            extra={"filename": filename, "error": str(exc)},
+            extra={"file_name": filename, "error": str(exc)},
         )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -416,7 +416,7 @@ async def predict(
     logger.info(
         "Prediction request received.",
         extra={
-            "filename": filename,
+            "file_name": filename,
             "content_type": image.content_type,
             "session_id": session_id,
         },
@@ -430,7 +430,7 @@ async def predict(
 
     logger.debug(
         "Image bytes read.",
-        extra={"filename": filename, "size_bytes": len(raw)},
+        extra={"file_name": filename, "size_bytes": len(raw)},
     )
 
     # ── Gate 3: Decode with Pillow ────────────────────────────────────────────
@@ -442,7 +442,7 @@ async def predict(
     except InvalidImageError as exc:
         logger.warning(
             "Image failed domain validation.",
-            extra={"filename": filename, "reason": exc.message},
+            extra={"file_name": filename, "reason": exc.message},
         )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -506,19 +506,8 @@ async def predict(
             pass
         # Call Celery task for inference
         try:
-            import base64
-
-            from app.services.tasks import run_yolo_inference
-
-            image_base64 = base64.b64encode(raw).decode("utf-8")
-
-            task_res = run_yolo_inference.delay(
-                image_base64,
-                session_id or "",
-                machine_id or "",
-                worker_id or "",
-                shift_id or "",
-            ).get(timeout=10.0)
+            # Skip Celery for synchronous prediction (faster, no timeout issues)
+            task_res = None
 
             if task_res and task_res.get("success") != False:
                 from app.services.prediction import (
@@ -568,7 +557,7 @@ async def predict(
             )
         except PredictionError as exc:
             logger.error(
-                "Inference failed.", extra={"filename": filename, "error": exc.message}
+                "Inference failed.", extra={"file_name": filename, "error": exc.message}
             )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -768,7 +757,7 @@ async def predict(
     logger.info(
         "Prediction response ready.",
         extra={
-            "filename": filename,
+            "file_name": filename,
             "num_detections": len(result.detections),
             "inference_ms": result.inference_time_ms,
         },
