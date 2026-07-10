@@ -21,7 +21,7 @@ import secrets
 from enum import Enum
 from pathlib import Path
 
-from pydantic import field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -37,8 +37,6 @@ _BACKEND_ROOT: Path = Path(__file__).resolve().parents[2]
 
 def _get_secret(name: str, default: str) -> str:
     """Load secret from Docker/K8s secret file, fallback to environment."""
-    import os
-
     secret_path = Path(f"/run/secrets/{name}")
     if secret_path.exists():
         try:
@@ -60,7 +58,12 @@ class Settings(BaseSettings):
     )
 
     # ── Application ───────────────────────────────────────────────────────────
-    env: Environment = Environment.DEVELOPMENT
+    # Accepts both ENV= and ENVIRONMENT= so docker-compose and .env files work
+    # interchangeably without renaming the field everywhere.
+    env: Environment = Field(
+        default=Environment.DEVELOPMENT,
+        validation_alias=AliasChoices("env", "environment"),
+    )
     app_name: str = "Nika AI"
     app_version: str = "0.1.0"
     debug: bool = False
@@ -113,9 +116,22 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "json"
 
-    # ── Sprint 8: AI Provider Selection ───────────────────────────────────────
+    # ── AI Provider (LLM) ─────────────────────────────────────────────────────
+    # GOOGLE_AI_KEY — API key for Google AI Studio (Gemini / Gemma models).
+    # When set, the GoogleGemmaAdapter is activated automatically.
+    # Get a free key at: https://aistudio.google.com/app/apikey
+    google_ai_key: str = ""
+
+    # Which Google AI / Gemini model to use.  Options available via AI Studio:
+    #   gemini-2.0-flash-lite   ← fast, free tier, recommended default
+    #   gemini-1.5-flash-latest ← more capable
+    #   gemma-2-9b-it           ← open Gemma model (may need allowlist access)
+    google_ai_model: str = "gemini-2.0-flash-lite"
+
     # Controls which LLM adapter the Copilot service uses at runtime.
-    # Values: rule_based | ollama | gemma | openai | huggingface
+    # Values: rule_based | gemini | ollama | openai | huggingface
+    # When google_ai_key is set, "gemini" is selected automatically by
+    # provider_factory regardless of this value.
     llm_provider: str = "rule_based"
 
     # Controls which knowledge retrieval backend is used.

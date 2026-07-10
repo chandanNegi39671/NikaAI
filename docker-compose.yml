@@ -1,21 +1,49 @@
 version: '3.8'
 
-# ── Shared configuration ──────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# Nika AI — Docker Compose
+#
+# Quick start:
+#   1. cp backend/.env.example .env
+#   2. Edit .env — set SECRET_KEY, POSTGRES_PASSWORD, and optionally GOOGLE_AI_KEY
+#   3. docker compose up --build
+#
+# The compose file reads variables from .env in the same directory.
+#
+# Bug fix: ENV= (not ENVIRONMENT=) is the correct var for Settings.env.
+#   pydantic-settings maps the Python field name 'env' → env var 'ENV'.
+#   AliasChoices in config.py also accepts 'ENVIRONMENT' for backward compat.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Load .env from project root automatically (Docker Compose default behaviour)
+# Variables below with :? syntax will fail-fast if not set.
+
+# ── Shared environment block ──────────────────────────────────────────────────
 x-backend-env: &backend-env
+  # Application mode — use ENV= (Settings.env field) or ENVIRONMENT= (alias)
+  ENV: ${ENV:-production}
+  # Google AI Studio key for Gemini/Gemma Copilot (optional — falls back to rule-based)
   GOOGLE_AI_KEY: ${GOOGLE_AI_KEY:-}
+  GOOGLE_AI_MODEL: ${GOOGLE_AI_MODEL:-gemini-2.0-flash-lite}
+  # Database
   DATABASE_URL: ${DATABASE_URL:-postgresql://nika_user:changeme_in_prod@db:5432/nika_db}
+  # Redis / Celery
   REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
   CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
   CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
-  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set in environment}
-  ENVIRONMENT: ${ENVIRONMENT:-production}
+  # Security — MUST be set; fail-fast prevents silent insecure startup
+  SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env (min 32 chars). Run: python -c "import secrets; print(secrets.token_hex(32))"}
+  # Logging
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
   LOG_FORMAT: ${LOG_FORMAT:-json}
+  # CORS
   CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost","http://localhost:80"]}
+  # Model
+  CONFIDENCE_THRESHOLD: ${CONFIDENCE_THRESHOLD:-0.25}
 
 services:
 
-  # ───────────────────────────── Frontend ─────────────────────────────
+  # ─────────────────────────────── Frontend ────────────────────────────────
   frontend:
     build:
       context: ./frontend
@@ -23,135 +51,112 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD","curl","-f","http://localhost:80"]
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
       interval: 30s
       timeout: 5s
       retries: 3
 
-  # ───────────────────────────── Backend ──────────────────────────────
+  # ─────────────────────────────── Backend ─────────────────────────────────
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-
     ports:
       - "8000:8000"
-
     volumes:
       - uploads_data:/app/static/uploads
       - logs_data:/app/logs
-
     environment:
       <<: *backend-env
-
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-
     restart: unless-stopped
-
     healthcheck:
-      test: ["CMD","curl","-f","http://localhost:8000/api/v1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 30s
       timeout: 10s
-      start_period: 45s
-      retries: 3
+      start_period: 60s
+      retries: 5
 
-  # ───────────────────────────── Celery Worker ─────────────────────────────
+  # ─────────────────────────── Celery Worker ───────────────────────────────
   celery_worker:
     build:
       context: ./backend
       dockerfile: Dockerfile
-
     command: >
       celery -A app.core.celery_app.celery_app
       worker
       --loglevel=info
       --concurrency=2
       -Q default
-
     volumes:
       - uploads_data:/app/static/uploads
       - logs_data:/app/logs
-
     environment:
       <<: *backend-env
-
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-
     restart: unless-stopped
 
-  # ───────────────────────────── Celery Beat ─────────────────────────────
+  # ─────────────────────────── Celery Beat ─────────────────────────────────
   celery_beat:
     build:
       context: ./backend
       dockerfile: Dockerfile
-
     command: >
       celery -A app.core.celery_app.celery_app
       beat
       --loglevel=info
       --schedule=/tmp/celerybeat-schedule
-
     environment:
       <<: *backend-env
-
     depends_on:
       redis:
         condition: service_healthy
-
     restart: unless-stopped
 
-  # ───────────────────────────── Redis ─────────────────────────────
+  # ───────────────────────────── Redis ─────────────────────────────────────
   redis:
     image: redis:7-alpine
     command: redis-server --save 60 1 --loglevel warning
-
     ports:
       - "6379:6379"
-
     volumes:
       - redis_data:/data
-
     restart: unless-stopped
-
     healthcheck:
-      test: ["CMD","redis-cli","ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # ───────────────────────────── PostgreSQL ─────────────────────────────
+  # ─────────────────────────── PostgreSQL ──────────────────────────────────
   db:
     image: postgres:15-alpine
-
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-nika_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in environment}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-nika_db}
-
     ports:
       - "5432:5432"
-
     volumes:
       - postgres_data:/var/lib/postgresql/data
-
     restart: unless-stopped
-
     healthcheck:
-      test: ["CMD-SHELL","pg_isready -U ${POSTGRES_USER:-nika_user} -d ${POSTGRES_DB:-nika_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nika_user} -d ${POSTGRES_DB:-nika_db}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
 volumes:
   postgres_data:

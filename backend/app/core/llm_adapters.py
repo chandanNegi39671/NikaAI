@@ -2,97 +2,265 @@
 backend/app/core/llm_adapters.py
 ─────────────────────────────────
 LLM Adapter abstraction layer for the AI Copilot.
+
+Architecture:
+  LLMAdapter (ABC)
+    ├── GoogleGeminiAdapter  — Google AI Studio REST API (Gemini / Gemma models)
+    ├── RuleBasedAdapter     — deterministic keyword rules, zero external deps
+    ├── OllamaAdapter        — local Ollama server (stub, Sprint 9+)
+    ├── OpenAIAdapter        — OpenAI-compatible API (stub, Sprint 9+)
+    └── HuggingFaceAdapter   — HuggingFace Inference API (stub, Sprint 9+)
+
+Configuration (via Settings / .env):
+  GOOGLE_AI_KEY=<your-api-key>          ← enables GoogleGeminiAdapter
+  GOOGLE_AI_MODEL=gemini-2.0-flash-lite ← model to use (default)
+
+Model options for GOOGLE_AI_MODEL:
+  gemini-2.0-flash-lite   — fast, free tier, recommended
+  gemini-1.5-flash-latest — more capable
+  gemma-2-9b-it           — open Gemma model (may need AI Studio allowlist)
+
+Get a free Google AI Studio key at: https://aistudio.google.com/app/apikey
 """
 
 from __future__ import annotations
+
 import json
-import os
 from abc import ABC, abstractmethod
 from typing import Any
+
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Value object
+# ─────────────────────────────────────────────────────────────────────────────
+
+
 class LLMResponse:
     __slots__ = ("answer", "sources", "confidence", "adapter_name")
 
-    def __init__(self, answer: str, sources: list[str] | None = None,
-                 confidence: float = 1.0, adapter_name: str = "unknown") -> None:
+    def __init__(
+        self,
+        answer: str,
+        sources: list[str] | None = None,
+        confidence: float = 1.0,
+        adapter_name: str = "unknown",
+    ) -> None:
         self.answer = answer
         self.sources = sources or []
         self.confidence = confidence
         self.adapter_name = adapter_name
 
     def to_dict(self) -> dict[str, Any]:
-        return {"answer": self.answer, "sources": self.sources,
-                "confidence": self.confidence, "adapter": self.adapter_name}
+        return {
+            "answer": self.answer,
+            "sources": self.sources,
+            "confidence": self.confidence,
+            "adapter": self.adapter_name,
+        }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Abstract base
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 class LLMAdapter(ABC):
     @abstractmethod
-    def generate_response(self, prompt: str, history: list[dict[str, str]], context: str) -> LLMResponse:
-        ...
+    def generate_response(
+        self,
+        prompt: str,
+        history: list[dict[str, str]],
+        context: str,
+    ) -> LLMResponse: ...
 
     @property
     def name(self) -> str:
         return self.__class__.__name__
 
 
-class GoogleGemmaAdapter(LLMAdapter):
-    """Real Gemma 4 via Google AI Studio API."""
+# ─────────────────────────────────────────────────────────────────────────────
+# Google AI Studio adapter  (Gemini / Gemma via generativelanguage API)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class GoogleGeminiAdapter(LLMAdapter):
+    """Calls Google AI Studio's generateContent REST endpoint.
+
+    Supports both Gemini and Gemma models.  The model is configurable via
+    settings.google_ai_model (env var GOOGLE_AI_MODEL).
+
+    Fallback: on any error, delegates to RuleBasedAdapter so the assistant
+    is always available even when the API is unreachable.
+    """
 
     def __init__(self) -> None:
-        self.api_key = os.environ.get("GOOGLE_AI_KEY", "")
-        self.model = "gemma-2-9b-it"
-        self.api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
+        # Import here to avoid a circular import at module load time
+        from app.core.config import settings
 
-    def generate_response(self, prompt: str, history: list[dict[str, str]], context: str) -> LLMResponse:
-        import urllib.request
+        self._api_key: str = settings.google_ai_key
+        self._model: str = settings.google_ai_model
+        self._api_url: str = (
+            "https://generativelanguage.googleapis.com/v1beta"
+            f"/models/{self._model}:generateContent"
+        )
+
+    def generate_response(
+        self,
+        prompt: str,
+        history: list[dict[str, str]],
+        context: str,
+    ) -> LLMResponse:
         import urllib.error
+        import urllib.request
 
-        if not self.api_key:
-            logger.warning("GOOGLE_AI_KEY not set, falling back to rule-based")
+        if not self._api_key:
+            logger.warning(
+                "GoogleGeminiAdapter: GOOGLE_AI_KEY not configured — "
+                "falling back to RuleBasedAdapter"
+            )
             return RuleBasedAdapter().generate_response(prompt, history, context)
 
         system_prompt = (
-            "You are Nika AI — a Senior Manufacturing Quality Engineer with 20 years of experience. "
-            "You help factory workers and managers understand defects, their causes, and corrective actions. "
-            "Always respond in plain language (8th grade reading level). "
-            "Be concise, practical, and actionable. "
-            f"\n\nFactory Knowledge Context:\n{context[:1000] if context else 'No context available.'}"
+            "You are Nika AI — a Senior Manufacturing Quality Engineer with "
+            "20 years of experience. "
+            "You help factory workers and managers understand defects, their "
+            "causes, and corrective actions. "
+            "Always respond in plain language (8th-grade reading level). "
+            "Be concise, practical, and actionable.\n\n"
+            f"Factory Knowledge Context:\n"
+            f"{context[:1500].strip() if context else 'No context available.'}"
         )
 
-        messages = [{"role": "user", "parts": [{"text": system_prompt + "\n\nWorker question: " + prompt}]}]
+        # Build the conversation in Gemini multi-turn format
+        contents: list[dict] = []
 
-        payload = json.dumps({"contents": messages, "generationConfig": {"maxOutputTokens": 500, "temperature": 0.3}}).encode()
+        # Prepend system context as a user/model exchange so the model adopts
+        # the persona even when the API doesn't have a dedicated system field
+        # (Gemini API v1beta does support systemInstruction, but the
+        #  generateContent endpoint works without it too).
+        for msg in history[-10:]:  # cap context window to last 10 turns
+            role = "model" if msg["role"] == "assistant" else "user"
+            contents.append({"role": role, "parts": [{"text": msg["content"]}]})
+
+        # Final user turn with full system prompt prepended
+        user_text = f"{system_prompt}\n\nWorker question: {prompt}"
+        contents.append({"role": "user", "parts": [{"text": user_text}]})
+
+        payload = json.dumps(
+            {
+                "contents": contents,
+                "generationConfig": {
+                    "maxOutputTokens": 600,
+                    "temperature": 0.3,
+                    "topP": 0.9,
+                },
+                "safetySettings": [
+                    # Relax safety thresholds for industrial / manufacturing topics
+                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
+                ],
+            }
+        ).encode()
 
         req = urllib.request.Request(
-            f"{self.api_url}?key={self.api_key}",
+            f"{self._api_url}?key={self._api_key}",
             data=payload,
             headers={"Content-Type": "application/json"},
-            method="POST"
+            method="POST",
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=15) as resp:
                 data = json.loads(resp.read())
-                answer = data["candidates"][0]["content"]["parts"][0]["text"]
-                logger.info("GoogleGemmaAdapter: response generated successfully")
-                return LLMResponse(answer=answer, sources=["Gemma 4 via Google AI"], confidence=0.95, adapter_name="gemma_google")
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode()
-            logger.error(f"Google AI API error {e.code}: {error_body}")
+
+            # Navigate the Gemini response structure
+            candidates = data.get("candidates", [])
+            if not candidates:
+                logger.warning(
+                    "GoogleGeminiAdapter: empty candidates in response",
+                    extra={"model": self._model},
+                )
+                return RuleBasedAdapter().generate_response(prompt, history, context)
+
+            answer = (
+                candidates[0]
+                .get("content", {})
+                .get("parts", [{}])[0]
+                .get("text", "")
+                .strip()
+            )
+
+            if not answer:
+                logger.warning("GoogleGeminiAdapter: blank answer text in response")
+                return RuleBasedAdapter().generate_response(prompt, history, context)
+
+            logger.info(
+                "GoogleGeminiAdapter: response generated",
+                extra={"model": self._model, "chars": len(answer)},
+            )
+            return LLMResponse(
+                answer=answer,
+                sources=[f"Google AI ({self._model})"],
+                confidence=0.95,
+                adapter_name="google_gemini",
+            )
+
+        except urllib.error.HTTPError as exc:
+            error_body = ""
+            try:
+                error_body = exc.read().decode()
+            except Exception:
+                pass
+            logger.error(
+                "GoogleGeminiAdapter: HTTP error",
+                extra={"status": exc.code, "body": error_body[:300], "model": self._model},
+            )
             return RuleBasedAdapter().generate_response(prompt, history, context)
-        except Exception as e:
-            logger.error(f"GoogleGemmaAdapter error: {e}")
+
+        except urllib.error.URLError as exc:
+            logger.error(
+                "GoogleGeminiAdapter: network error",
+                extra={"reason": str(exc.reason), "model": self._model},
+            )
             return RuleBasedAdapter().generate_response(prompt, history, context)
+
+        except Exception as exc:
+            logger.error(
+                "GoogleGeminiAdapter: unexpected error",
+                extra={"error": str(exc), "model": self._model},
+            )
+            return RuleBasedAdapter().generate_response(prompt, history, context)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Backward-compatible alias so existing imports don't break
+# ─────────────────────────────────────────────────────────────────────────────
+
+#: Alias kept for backward compatibility with any code that imported the old name.
+GoogleGemmaAdapter = GoogleGeminiAdapter
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Rule-based fallback (zero external deps)
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 class RuleBasedAdapter(LLMAdapter):
-    """Fallback rule-based adapter."""
+    """Deterministic keyword-matching adapter.
 
-    def generate_response(self, prompt: str, history: list[dict[str, str]], context: str) -> LLMResponse:
+    Always available — used as fallback when no LLM API key is configured or
+    when any upstream API call fails.
+    """
+
+    def generate_response(
+        self,
+        prompt: str,
+        history: list[dict[str, str]],
+        context: str,
+    ) -> LLMResponse:
         lower = prompt.lower()
         sources: list[str] = []
 
@@ -133,21 +301,62 @@ class RuleBasedAdapter(LLMAdapter):
                 "What quality issue can I help you with today?"
             )
 
-        return LLMResponse(answer=answer, sources=sources[:3], confidence=0.88, adapter_name="rule_based")
+        return LLMResponse(
+            answer=answer,
+            sources=sources[:3],
+            confidence=0.88,
+            adapter_name="rule_based",
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Stub adapters (Sprint 9+ extension points)
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 class OllamaAdapter(LLMAdapter):
-    def generate_response(self, prompt, history, context):
-        raise NotImplementedError("OllamaAdapter not configured.")
+    """Local Ollama LLM server adapter — Sprint 9+ implementation."""
 
-class GemmaAdapter(LLMAdapter):
-    def generate_response(self, prompt, history, context):
-        raise NotImplementedError("Use GoogleGemmaAdapter instead.")
+    def generate_response(
+        self, prompt: str, history: list[dict[str, str]], context: str
+    ) -> LLMResponse:
+        raise NotImplementedError(
+            "OllamaAdapter is not yet implemented. "
+            "Start Ollama locally and implement this class in Sprint 9."
+        )
+
 
 class OpenAIAdapter(LLMAdapter):
-    def generate_response(self, prompt, history, context):
-        raise NotImplementedError("OpenAIAdapter not configured.")
+    """OpenAI-compatible API adapter — Sprint 9+ implementation."""
+
+    def generate_response(
+        self, prompt: str, history: list[dict[str, str]], context: str
+    ) -> LLMResponse:
+        raise NotImplementedError(
+            "OpenAIAdapter is not yet implemented. "
+            "Set OPENAI_API_KEY and implement this class in Sprint 9."
+        )
+
 
 class HuggingFaceAdapter(LLMAdapter):
-    def generate_response(self, prompt, history, context):
-        raise NotImplementedError("HuggingFaceAdapter not configured.")
+    """HuggingFace Inference API adapter — Sprint 9+ implementation."""
+
+    def generate_response(
+        self, prompt: str, history: list[dict[str, str]], context: str
+    ) -> LLMResponse:
+        raise NotImplementedError(
+            "HuggingFaceAdapter is not yet implemented. "
+            "Set HF_API_KEY and implement this class in Sprint 9."
+        )
+
+
+# Kept for any legacy imports
+class GemmaAdapter(LLMAdapter):
+    """Deprecated — use GoogleGeminiAdapter instead."""
+
+    def generate_response(
+        self, prompt: str, history: list[dict[str, str]], context: str
+    ) -> LLMResponse:
+        raise NotImplementedError(
+            "GemmaAdapter is deprecated. Use GoogleGeminiAdapter (via provider_factory)."
+        )

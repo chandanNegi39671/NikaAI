@@ -2,12 +2,25 @@
 backend/app/api/endpoints/auth.py
 ──────────────────────────────────
 Authentication Router exposing Login, Register, Profile, Refresh, and Logout.
-"""
 
-# from __future__ import annotations
+Bug fixes in this revision
+──────────────────────────
+1. Login dual-body bug: OAuth2PasswordRequestForm is a Depends() dependency
+   that always injects an object (never None).  The old `if form_data:` check
+   was therefore always True and the JSON `login_data` branch (elif) was never
+   reached.  Fix: guard on `form_data.username` (the actual field value).
+
+2. Removed fragile re-imports of `jwt` and `settings` from `app.core.auth`.
+   Those are now imported directly from their canonical modules.
+
+3. Token blacklist check on logout now gracefully handles a missing Redis
+   connection (returns 200 even when Redis is down — the user is still
+   effectively logged out from their perspective).
+"""
 
 from typing import Annotated
 
+import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr, Field
@@ -19,11 +32,10 @@ from app.core.auth import (
     create_refresh_token,
     get_current_user,
     get_password_hash,
-    jwt,
     oauth2_scheme,
-    settings,
     verify_password,
 )
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.limiter import limiter
 from app.core.logging import get_logger
@@ -169,23 +181,29 @@ async def login(
 ) -> dict:
     """Authenticate username/password and return access + refresh tokens.
 
-    Supports standard JSON request payloads and URL form-encoded data.
-    """
-    username = None
-    password = None
+    Accepts two content types:
+      • application/x-www-form-urlencoded  (Swagger UI / OAuth2 clients)
+      • application/json                   (frontend / API clients)
 
-    # Handle standard OAuth2 password bearer form format
-    if form_data:
+    BUG FIX: OAuth2PasswordRequestForm is always injected as an object even
+    when no form body is present.  The guard is therefore `form_data.username`
+    (the actual value) rather than `form_data` (the object, always truthy).
+    """
+    username: str | None = None
+    password: str | None = None
+
+    # form_data is always an object (Depends injects it), so guard on the value
+    if form_data and form_data.username:
         username = form_data.username
         password = form_data.password
-    # Fallback to JSON payload
     elif login_data:
         username = login_data.username
         password = login_data.password
 
     if not username or not password:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Credentials not provided."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Credentials not provided. Send JSON {username, password} or form data.",
         )
 
     user = (
@@ -196,7 +214,8 @@ async def login(
 
     if not user or not verify_password(password, user.password_hash):
         logger.warning(
-            f"Failed login attempt for username: {username} from IP: {request.client.host if request.client else 'unknown'}"
+            f"Failed login attempt for username: {username} "
+            f"from IP: {request.client.host if request.client else 'unknown'}"
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -322,15 +341,18 @@ async def logout(
     """Log out of the current user session and add audit entry."""
     logger.info(f"User '{current_user.username}' logged out.")
 
-    # Blacklist the access token
+    # Blacklist the access token in Redis (best-effort — graceful when Redis is down)
     if token:
-        from app.core.config import settings
-        from app.core.redis import blacklist_token
+        try:
+            from app.core.redis import blacklist_token
 
-        # Blacklist it for the duration of its expiry (15m default)
-        blacklist_token(
-            token, expires_in_seconds=settings.access_token_expire_minutes * 60
-        )
+            blacklist_token(
+                token,
+                expires_in_seconds=settings.access_token_expire_minutes * 60,
+            )
+        except Exception as exc:
+            # Redis down → still allow logout; token will expire naturally
+            logger.warning(f"Token blacklist unavailable during logout: {exc}")
 
     try:
         audit = AuditLog(
