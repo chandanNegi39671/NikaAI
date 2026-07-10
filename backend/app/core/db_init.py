@@ -22,7 +22,7 @@ def init_db() -> None:
         logger.info("Database tables verified.")
     except Exception as exc:
         logger.error(f"Failed to create database tables: {exc}")
-        raise exc
+        raise
 
     db = SessionLocal()
     try:
@@ -134,6 +134,6 @@ def init_db() -> None:
     except Exception as exc:
         db.rollback()
         logger.error(f"Error during database seeding: {exc}")
-        raise exc
+        raise
     finally:
         db.close()

@@ -32,12 +32,12 @@ x-backend-env: &backend-env
   CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
   CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND:-redis://redis:6379/2}
   # Security — MUST be set; fail-fast prevents silent insecure startup
-  SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env (min 32 chars). Run: python -c "import secrets; print(secrets.token_hex(32))"}
+  SECRET_KEY: "${SECRET_KEY:?Set SECRET_KEY in .env (min 32 chars). Run: python -c 'import secrets; print(secrets.token_hex(32))'}"
   # Logging
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
   LOG_FORMAT: ${LOG_FORMAT:-json}
   # CORS
-  CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost","http://localhost:80"]}
+  CORS_ORIGINS: '${CORS_ORIGINS:-["http://localhost","http://localhost:80"]}'
   # Model
   CONFIDENCE_THRESHOLD: ${CONFIDENCE_THRESHOLD:-0.25}
 

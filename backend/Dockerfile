@@ -95,9 +95,9 @@ EXPOSE 8000
 
 # Healthcheck — start_period allows YOLO model to load + warmup
 HEALTHCHECK --interval=30s \
-            --timeout=10s \
-            --start_period=60s \
-            --retries=5 \
+        --timeout=10s \
+        --start-period=60s \
+        --retries=5 \
     CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
 # Start FastAPI via Gunicorn + UvicornWorker.

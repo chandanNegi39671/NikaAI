@@ -29,7 +29,7 @@ from __future__ import annotations
 import time
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
@@ -140,10 +140,8 @@ def _format_uptime(elapsed_seconds: float) -> str:
     response_model=HealthResponse,
     summary="Health check",
     description=(
-        "Liveness and readiness probe. "
-        "Returns HTTP 200 when the model is loaded and ready. "
-        "Returns HTTP 503 when the model failed to load — this triggers "
-        "Kubernetes readiness/liveness probe failures and container restarts."
+        "Liveness probe. Returns HTTP 200 while the process is alive and "
+        "includes the current model_loaded state in the response body."
     ),
     responses={
         200: {
@@ -160,31 +158,15 @@ def _format_uptime(elapsed_seconds: float) -> str:
                 }
             },
         },
-        503: {
-            "description": "Model not loaded — service is degraded and not ready to serve inference.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": "degraded",
-                        "service": "Nika AI Backend",
-                        "version": "1.0.0",
-                        "model_loaded": False,
-                        "uptime": "0d 00h 00m 12s",
-                    }
-                }
-            },
-        },
     },
 )
 async def health_check() -> HealthResponse:
-    """Return liveness and readiness information.
+    """Return liveness information.
 
-    Returns HTTP 200 when the YOLO model is loaded and ready to serve.
-    Returns HTTP 503 when the model is not loaded — this surfaces the failure
-    to Docker / Kubernetes health probes so the container is restarted rather
-    than silently left in a broken state.
+    This endpoint always returns HTTP 200 so Docker and Kubernetes can use it
+    as a liveness probe. Readiness is reported separately via /api/v1/ready.
 
-    The endpoint intentionally has no DB or external calls so probes are fast.
+    The endpoint intentionally has no DB or external calls so probes stay fast.
     """
     elapsed = time.monotonic() - _SERVER_START_TIME
     model_loaded = prediction_service.is_loaded
@@ -197,26 +179,14 @@ async def health_check() -> HealthResponse:
         uptime=_format_uptime(elapsed),
     )
 
-    http_status = 200 if model_loaded else 503
-
     logger.debug(
         "Health check requested.",
         extra={
             "model_loaded": model_loaded,
             "uptime": response_body.uptime,
-            "http_status": http_status,
+            "http_status": 200,
         },
     )
-
-    if http_status == 503:
-        # Return a raw Response so we can set the 503 status code.
-        # FastAPI's response_model only applies to the 200 path above.
-        import json as _json
-        return Response(
-            content=_json.dumps(response_body.model_dump()),
-            status_code=503,
-            media_type="application/json",
-        )
 
     return response_body
 

@@ -79,6 +79,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             "Failed to initialize database during startup.",
             extra={"error": str(exc), "type": type(exc).__name__},
         )
+        raise
 
     try:
         prediction_service.load_model()
@@ -91,12 +92,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             },
         )
     except Exception as exc:
-        # Log but do NOT crash the server — /health still responds so
-        # operators can diagnose without SSH access.
         logger.error(
             "Failed to initialise PredictionService during startup.",
             extra={"error": str(exc), "type": type(exc).__name__},
         )
+        if settings.env == Environment.PRODUCTION:
+            raise
 
     yield  # Application is now running — requests are served here
 

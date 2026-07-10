@@ -103,6 +103,15 @@ class Settings(BaseSettings):
     # Absolute path to the local YOLOv8 weights file.
     model_path: Path = _BACKEND_ROOT / "app" / "models" / "best.pt"
 
+    # ── Storage ───────────────────────────────────────────────────────────────
+    storage_backend: str = "local"
+    s3_endpoint_url: str = "http://minio:9000"
+    s3_bucket: str = "nika-uploads"
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
+    s3_region: str = "us-east-1"
+    s3_use_ssl: bool = False
+
     # Inference settings
     confidence_threshold: float = 0.25
     warmup_image_size: tuple[int, int] = (640, 640)

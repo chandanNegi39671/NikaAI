@@ -1,10 +1,7 @@
-"""
-backend/app/core/storage.py
-───────────────────────────
-Abstract Storage Provider Adapter pattern supporting Local and S3/MinIO compatible object stores.
-"""
+"""Storage provider adapter with local and S3-compatible implementations."""
 
 from abc import ABC, abstractmethod
+from contextlib import suppress
 from pathlib import Path
 
 from app.core.config import settings
@@ -19,12 +16,12 @@ class StorageProvider(ABC):
     @abstractmethod
     def save(self, content: bytes, filename: str) -> str:
         """Save raw bytes to storage and return the public URL or relative path."""
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def delete(self, filename: str) -> bool:
         """Delete file from storage."""
-        pass
+        raise NotImplementedError
 
 
 class LocalStorageProvider(StorageProvider):
@@ -38,8 +35,8 @@ class LocalStorageProvider(StorageProvider):
 
     def save(self, content: bytes, filename: str) -> str:
         file_path = self.upload_dir / filename
-        with open(file_path, "wb") as f:
-            f.write(content)
+        with open(file_path, "wb") as file_handle:
+            file_handle.write(content)
         return f"/static/uploads/{filename}"
 
     def delete(self, filename: str) -> bool:
@@ -54,44 +51,51 @@ class LocalStorageProvider(StorageProvider):
 
 
 class S3StorageProvider(StorageProvider):
-    """Saves uploads to MinIO / AWS S3 buckets (production standard)."""
+    """Saves uploads to S3-compatible buckets when configured."""
 
     def __init__(self) -> None:
-        # Load configs from Settings / Secrets Manager
-        self.bucket = "nika-uploads"
-        self.endpoint_url = "http://minio:9000"
-        self.access_key = "minio_access_key"
-        self.secret_key = "minio_secret_key"
-
-        # Initialize boto3 dynamically to avoid boot errors if boto3 is missing
+        self.bucket = settings.s3_bucket
+        self.endpoint_url = settings.s3_endpoint_url.rstrip("/")
+        self.access_key = settings.s3_access_key_id
+        self.secret_key = settings.s3_secret_access_key
+        self.region = settings.s3_region
+        self.use_ssl = settings.s3_use_ssl
         self._s3 = None
+
         try:
             import boto3
+
+            if not self.access_key or not self.secret_key:
+                raise ValueError("S3 credentials are not configured.")
 
             self._s3 = boto3.client(
                 "s3",
                 endpoint_url=self.endpoint_url,
                 aws_access_key_id=self.access_key,
-                aws_secret_key_id=self.secret_key,
+                aws_secret_access_key=self.secret_key,
+                region_name=self.region,
+                use_ssl=self.use_ssl,
             )
-            # Assert bucket exists
-            self._s3.create_bucket(Bucket=self.bucket)
+            with suppress(Exception):
+                self._s3.head_bucket(Bucket=self.bucket)
         except Exception as exc:
             logger.warning(
-                f"Failed to initialize S3 boto3 provider: {exc}. Falling back to Local."
+                f"Failed to initialize S3 provider: {exc}. Falling back to local storage."
             )
 
     def save(self, content: bytes, filename: str) -> str:
         if not self._s3:
-            # Fallback to local
             return LocalStorageProvider().save(content, filename)
         try:
             self._s3.put_object(
-                Bucket=self.bucket, Key=filename, Body=content, ContentType="image/jpeg"
+                Bucket=self.bucket,
+                Key=filename,
+                Body=content,
+                ContentType="image/jpeg",
             )
             return f"{self.endpoint_url}/{self.bucket}/{filename}"
         except Exception as exc:
-            logger.error(f"S3 save failure: {exc}. Falling back to local.")
+            logger.error(f"S3 save failure: {exc}. Falling back to local storage.")
             return LocalStorageProvider().save(content, filename)
 
     def delete(self, filename: str) -> bool:
@@ -105,9 +109,11 @@ class S3StorageProvider(StorageProvider):
             return False
 
 
-# Initialize the active storage provider
-# Use S3 provider if ENVIRONMENT is production, otherwise fallback to Local
-if settings.env.value == "production":
-    storage_provider: StorageProvider = S3StorageProvider()
-else:
-    storage_provider = LocalStorageProvider()
+def _build_storage_provider() -> StorageProvider:
+    backend = settings.storage_backend.lower().strip()
+    if backend == "s3":
+        return S3StorageProvider()
+    return LocalStorageProvider()
+
+
+storage_provider: StorageProvider = _build_storage_provider()
