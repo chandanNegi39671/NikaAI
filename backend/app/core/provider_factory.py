@@ -1,79 +1,27 @@
 """
 backend/app/core/provider_factory.py
-────────────────────────────────────
-Factory class to instantiate and cache LLM adapters and Knowledge providers based on configuration.
+Runtime provider selection for LLM and knowledge adapters.
 """
-
-from app.core.config import settings
-from app.core.knowledge_providers import (
-    KeywordKnowledgeProvider,
-    KnowledgeProvider,
-    VectorKnowledgeProvider,
-)
-from app.core.llm_adapters import (
-    GemmaAdapter,
-    HuggingFaceAdapter,
-    LLMAdapter,
-    OllamaAdapter,
-    OpenAIAdapter,
-    RuleBasedAdapter,
-)
+from __future__ import annotations
+import os
+from app.core.llm_adapters import LLMAdapter, GoogleGemmaAdapter, RuleBasedAdapter
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Singletons for memory efficiency
-_llm_cache: dict[str, LLMAdapter] = {}
-_kp_cache: dict[str, KnowledgeProvider] = {}
-
-
 def get_llm_adapter() -> LLMAdapter:
-    """Instantiate and return the configured LLMAdapter."""
-    provider_name = settings.llm_provider.lower().strip()
+    google_key = os.environ.get("GOOGLE_AI_KEY", "")
+    if google_key:
+        logger.info("LLM Provider: GoogleGemmaAdapter (Gemma 4)")
+        return GoogleGemmaAdapter()
+    logger.info("LLM Provider: RuleBasedAdapter (fallback)")
+    return RuleBasedAdapter()
 
-    if provider_name in _llm_cache:
-        return _llm_cache[provider_name]
-
-    logger.info(f"Initializing LLM adapter: '{provider_name}'")
-
-    if provider_name == "rule_based":
-        adapter = RuleBasedAdapter()
-    elif provider_name == "ollama":
-        adapter = OllamaAdapter()
-    elif provider_name == "gemma":
-        adapter = GemmaAdapter()
-    elif provider_name == "openai":
-        adapter = OpenAIAdapter()
-    elif provider_name == "huggingface":
-        adapter = HuggingFaceAdapter()
-    else:
-        logger.warning(
-            f"Unknown LLM provider '{provider_name}'. Defaulting to 'rule_based'."
-        )
-        adapter = RuleBasedAdapter()
-
-    _llm_cache[provider_name] = adapter
-    return adapter
-
-
-def get_knowledge_provider() -> KnowledgeProvider:
-    """Instantiate and return the configured KnowledgeProvider."""
-    provider_name = settings.knowledge_provider.lower().strip()
-
-    if provider_name in _kp_cache:
-        return _kp_cache[provider_name]
-
-    logger.info(f"Initializing Knowledge provider: '{provider_name}'")
-
-    if provider_name == "keyword":
-        provider = KeywordKnowledgeProvider()
-    elif provider_name == "vector":
-        provider = VectorKnowledgeProvider()
-    else:
-        logger.warning(
-            f"Unknown Knowledge provider '{provider_name}'. Defaulting to 'keyword'."
-        )
-        provider = KeywordKnowledgeProvider()
-
-    _kp_cache[provider_name] = provider
-    return provider
+def get_knowledge_provider():
+    """Returns keyword-based knowledge provider (default)."""
+    try:
+        from app.core.knowledge_providers import KeywordKnowledgeProvider
+        return KeywordKnowledgeProvider()
+    except ImportError:
+        logger.warning("KeywordKnowledgeProvider not found, returning None")
+        return None

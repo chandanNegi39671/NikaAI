@@ -1,10 +1,8 @@
 version: '3.8'
 
 # ── Shared configuration ──────────────────────────────────────────────────────
-# Use an .env file at the project root to override any defaults.
-# NEVER commit real secrets to this file. Use Docker secrets or a vault in prod.
-
 x-backend-env: &backend-env
+  GOOGLE_AI_KEY: ${GOOGLE_AI_KEY:-}
   DATABASE_URL: ${DATABASE_URL:-postgresql://nika_user:changeme_in_prod@db:5432/nika_db}
   REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
   CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/1}
@@ -13,10 +11,11 @@ x-backend-env: &backend-env
   ENVIRONMENT: ${ENVIRONMENT:-production}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
   LOG_FORMAT: ${LOG_FORMAT:-json}
-  CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost", "http://localhost:80"]}
+  CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost","http://localhost:80"]}
 
 services:
-  # ── Frontend ─────────────────────────────────────────────────────────────────
+
+  # ───────────────────────────── Frontend ─────────────────────────────
   frontend:
     build:
       context: ./frontend
@@ -27,105 +26,135 @@ services:
       - backend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      test: ["CMD","curl","-f","http://localhost:80"]
       interval: 30s
       timeout: 5s
       retries: 3
 
-  # ── API Backend ───────────────────────────────────────────────────────────────
+  # ───────────────────────────── Backend ──────────────────────────────
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
+
+    ports:
+      - "8000:8000"
+
     volumes:
       - uploads_data:/app/static/uploads
-      # NOTE: Do NOT mount a volume over /app/app/models — the model file
-      # (best.pt) is baked into the image at build time. Mounting a named
-      # volume here would shadow the image layer and hide best.pt on first run.
       - logs_data:/app/logs
+
     environment:
       <<: *backend-env
+
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+
     restart: unless-stopped
+
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      test: ["CMD","curl","-f","http://localhost:8000/api/v1/health"]
       interval: 30s
       timeout: 10s
       start_period: 45s
       retries: 3
 
-  # ── Celery Worker (YOLO inference + background tasks) ─────────────────────────
+  # ───────────────────────────── Celery Worker ─────────────────────────────
   celery_worker:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: celery -A app.core.celery_app.celery_app worker --loglevel=info --concurrency=2 -Q default
+
+    command: >
+      celery -A app.core.celery_app.celery_app
+      worker
+      --loglevel=info
+      --concurrency=2
+      -Q default
+
     volumes:
       - uploads_data:/app/static/uploads
-      # NOTE: Do NOT mount a volume over /app/app/models — same reason as backend.
       - logs_data:/app/logs
+
     environment:
       <<: *backend-env
+
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+
     restart: unless-stopped
 
-  # ── Celery Beat Scheduler (cron tasks) ────────────────────────────────────────
+  # ───────────────────────────── Celery Beat ─────────────────────────────
   celery_beat:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: celery -A app.core.celery_app.celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+
+    command: >
+      celery -A app.core.celery_app.celery_app
+      beat
+      --loglevel=info
+      --schedule=/tmp/celerybeat-schedule
+
     environment:
       <<: *backend-env
+
     depends_on:
       redis:
         condition: service_healthy
+
     restart: unless-stopped
 
-  # ── Redis (cache + Celery broker) ─────────────────────────────────────────────
+  # ───────────────────────────── Redis ─────────────────────────────
   redis:
     image: redis:7-alpine
     command: redis-server --save 60 1 --loglevel warning
-    volumes:
-      - redis_data:/data
+
     ports:
       - "6379:6379"
+
+    volumes:
+      - redis_data:/data
+
     restart: unless-stopped
+
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD","redis-cli","ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # ── PostgreSQL Database ────────────────────────────────────────────────────────
+  # ───────────────────────────── PostgreSQL ─────────────────────────────
   db:
     image: postgres:15-alpine
+
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-nika_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in environment}
       POSTGRES_DB: ${POSTGRES_DB:-nika_db}
+
     ports:
       - "5432:5432"
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+    restart: unless-stopped
+
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nika_user} -d ${POSTGRES_DB:-nika_db}"]
+      test: ["CMD-SHELL","pg_isready -U ${POSTGRES_USER:-nika_user} -d ${POSTGRES_DB:-nika_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
 
 volumes:
   postgres_data:
   redis_data:
   uploads_data:
-  # model_data volume removed — model is baked into the image, not persisted externally.
   logs_data:
