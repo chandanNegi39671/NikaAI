@@ -23,8 +23,8 @@ x-backend-env: &backend-env
   # Application mode — use ENV= (Settings.env field) or ENVIRONMENT= (alias)
   ENV: ${ENV:-production}
   # Google AI Studio key for Gemini/Gemma Copilot (optional — falls back to rule-based)
+  GOOGLE_AI_MODEL: ${GOOGLE_AI_MODEL:-gemini-2.0-flash}
   GOOGLE_AI_KEY: ${GOOGLE_AI_KEY:-}
-  GOOGLE_AI_MODEL: ${GOOGLE_AI_MODEL:-gemini-2.0-flash-lite}
   # Database
   DATABASE_URL: ${DATABASE_URL:-postgresql://nika_user:changeme_in_prod@db:5432/nika_db}
   # Redis / Celery
