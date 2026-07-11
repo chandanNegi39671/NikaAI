@@ -100,14 +100,16 @@ export default function LiveInspection() {
     } else {
       stopCamera()
     }
-  }, [activeTab, startCamera, stopCamera])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]) // intentionally exclude startCamera/stopCamera to prevent infinite loop
 
   // Cleanup stream on unmount
   useEffect(() => {
     return () => {
       stopCamera()
     }
-  }, [stopCamera])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // run cleanup only on unmount
 
   // Handle manual capture in live stream
   const handleManualCapture = async () => {

@@ -25,6 +25,13 @@ export function useCamera() {
   } = useCameraStore()
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  // Use a ref to track current stream — avoids stale closure in startCamera
+  const streamRef = useRef<MediaStream | null>(null)
+
+  // Keep streamRef in sync with store
+  useEffect(() => {
+    streamRef.current = stream
+  }, [stream])
 
   // Enumerate available video input devices
   const enumerateDevices = useCallback(async () => {
@@ -53,37 +60,48 @@ export function useCamera() {
 
   // Stop camera action
   const stopCamera = useCallback(() => {
-    stopStreamTracks(stream)
+    stopStreamTracks(streamRef.current)
     setStream(null)
+    streamRef.current = null
     if (videoRef.current) {
       videoRef.current.srcObject = null
     }
     setStatus('stopped')
-  }, [stream, stopStreamTracks, setStream, setStatus])
+  }, [stopStreamTracks, setStream, setStatus])
 
   // Start camera action with optional deviceId
+  // NOTE: Uses streamRef instead of stream state to avoid infinite loop
   const startCamera = useCallback(
     async (deviceId?: string) => {
-      // Clean up previous stream first
-      stopStreamTracks(stream)
+      // Clean up previous stream first using ref (not state)
+      stopStreamTracks(streamRef.current)
       setStatus('requesting')
       setCameraError(null)
 
       const constraints: MediaStreamConstraints = {
         video: deviceId
           ? { deviceId: { exact: deviceId } }
-          : { facingMode: 'environment' }, // Default to back camera on mobile
+          : true, // Use 'true' instead of facingMode to work on desktop too
         audio: false,
       }
 
       try {
         const newStream = await navigator.mediaDevices.getUserMedia(constraints)
+        streamRef.current = newStream
         setStream(newStream)
         setStatus('active')
 
+        // Attach to video element immediately
         if (videoRef.current) {
           videoRef.current.srcObject = newStream
         }
+
+        // Also retry after a tick in case video element wasn't mounted yet
+        setTimeout(() => {
+          if (videoRef.current && videoRef.current.srcObject !== newStream) {
+            videoRef.current.srcObject = newStream
+          }
+        }, 50)
 
         // Re-enumerate to get labels if permission was just granted
         const enumerated = await enumerateDevices()
@@ -114,12 +132,14 @@ export function useCamera() {
         setStatus(finalStatus)
         setCameraError(errorMessage)
         setStream(null)
+        streamRef.current = null
       }
     },
-    [stream, stopStreamTracks, setStream, setStatus, setCameraError, enumerateDevices, setActiveDevice]
+    // stream removed from deps — using streamRef instead to break the infinite loop
+    [stopStreamTracks, setStream, setStatus, setCameraError, enumerateDevices, setActiveDevice]
   )
 
-  // Pause camera stream (tracks remain enabled but paused visual output)
+  // Pause camera stream
   const pauseCamera = useCallback(() => {
     if (videoRef.current) {
       videoRef.current.pause()
@@ -149,11 +169,6 @@ export function useCamera() {
   // Auto clean up and check permissions on mount/unmount
   useEffect(() => {
     enumerateDevices()
-    return () => {
-      // Note: We don't call stopCamera here directly to keep stream active
-      // across routes if needed, but for safe auto cleanup of the component:
-      // useCamera caller should call stopCamera.
-    }
   }, [enumerateDevices])
 
   return {
