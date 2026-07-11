@@ -16,7 +16,7 @@ import type { HealthResponse, PredictResponse } from '../types'
 // ── Axios Instance ─────────────────────────────────────────────────────────────
 
 const apiClient: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : '/api/v1',
+  baseURL: 'https://nikaai-production.up.railway.app/api/v1',
   timeout: 30_000,
 })
 

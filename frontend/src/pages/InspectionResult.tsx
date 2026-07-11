@@ -92,7 +92,7 @@ export default function InspectionResult() {
       return
     }
     const token = localStorage.getItem('nika_token')
-    const res = await fetch(`/api/v1/analytics/report/pdf/${lastResult.id}`, {
+    const res = await fetch(`https://nikaai-production.up.railway.app/api/v1/analytics/report/pdf/${lastResult.id}`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     if (!res.ok) {

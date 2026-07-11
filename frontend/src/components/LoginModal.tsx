@@ -16,7 +16,7 @@ export default function LoginModal({ isOpen, onClose }: Props) {
       const body = new URLSearchParams()
       body.append('username', username)
       body.append('password', password)
-      const res = await fetch('/api/v1/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })
+      const res = await fetch('https://nikaai-production.up.railway.app/api/v1/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })
       const data = await res.json()
       if (!res.ok) { setError(data.detail || 'Login failed'); return }
       localStorage.setItem('nika_token', data.access_token)
