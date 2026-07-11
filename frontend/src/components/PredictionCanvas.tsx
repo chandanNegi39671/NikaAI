@@ -64,6 +64,7 @@ export default function PredictionCanvas({
           ref={videoRef}
           playsInline
           muted
+          autoPlay
           className="w-full h-full object-contain"
         />
       ) : src ? (

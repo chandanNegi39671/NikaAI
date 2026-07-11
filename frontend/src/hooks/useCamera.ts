@@ -149,6 +149,16 @@ export function useCamera() {
     [activeDeviceId, startCamera]
   )
 
+  // Attach stream to video element whenever stream or videoRef becomes available
+  useEffect(() => {
+    if (stream && videoRef.current && videoRef.current.srcObject !== stream) {
+      videoRef.current.srcObject = stream
+      videoRef.current.play().catch((err) => {
+        console.error('Error auto-playing video element:', err)
+      })
+    }
+  }, [stream, videoRef])
+
   // Auto clean up and check permissions on mount/unmount
   useEffect(() => {
     enumerateDevices()
