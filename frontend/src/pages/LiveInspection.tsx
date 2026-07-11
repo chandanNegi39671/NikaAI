@@ -281,8 +281,9 @@ export default function LiveInspection() {
                 </div>
               )}
 
-              {camStatus === 'requesting' && (
-                <div className="text-center z-10 flex flex-col items-center">
+              {/* Spinner overlay - shown on top while camera initializes */}
+              {(camStatus === 'requesting' || camStatus === 'idle') && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
                   <span className="material-symbols-outlined text-primary animate-spin text-4xl mb-2">
                     sync
                   </span>
@@ -292,17 +293,17 @@ export default function LiveInspection() {
                 </div>
               )}
 
-              {/* Active webcam display & overlays - always mounted */}
-              <div className={camStatus === 'active' ? 'contents' : 'invisible absolute inset-0'}>
+              {/* PredictionCanvas always mounted so videoRef is available before stream arrives */}
+              {(camStatus === 'requesting' || camStatus === 'idle' || camStatus === 'active') && (
                 <PredictionCanvas
                   src={null}
                   videoRef={videoRef}
                   detections={lastResult ? lastResult.detections : []}
                   sourceWidth={videoRef.current?.videoWidth || 640}
                   sourceHeight={videoRef.current?.videoHeight || 480}
-                  className="w-full h-full"
+                  className={`w-full h-full ${camStatus !== 'active' ? 'invisible' : ''}`}
                 />
-              </div>
+              )}
 
               {/* Video control toolbar */}
               {camStatus === 'active' && (
