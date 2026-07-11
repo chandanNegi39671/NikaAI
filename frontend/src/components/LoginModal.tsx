@@ -21,7 +21,7 @@ export default function LoginModal({ isOpen, onClose }: Props) {
       if (!res.ok) { setError(data.detail || 'Login failed'); return }
       localStorage.setItem('nika_token', data.access_token)
       onClose()
-      window.location.reload()
+      setTimeout(() => window.location.reload(), 200)
     } catch { setError('Network error') } finally { setLoading(false) }
   }
 
