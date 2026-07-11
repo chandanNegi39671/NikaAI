@@ -292,8 +292,8 @@ export default function LiveInspection() {
                 </div>
               )}
 
-              {/* Active webcam display & overlays */}
-              {camStatus === 'active' && (
+              {/* Active webcam display & overlays - always mounted */}
+              <div className={camStatus === 'active' ? 'contents' : 'invisible absolute inset-0'}>
                 <PredictionCanvas
                   src={null}
                   videoRef={videoRef}
@@ -302,7 +302,7 @@ export default function LiveInspection() {
                   sourceHeight={videoRef.current?.videoHeight || 480}
                   className="w-full h-full"
                 />
-              )}
+              </div>
 
               {/* Video control toolbar */}
               {camStatus === 'active' && (
