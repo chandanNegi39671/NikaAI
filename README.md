@@ -1,30 +1,37 @@
 # 🏭 Nika AI — AI Quality Copilot for MSME Manufacturing
 
-> **AMD AI Developer Hackathon: Act II · July 6–11, 2026 · $20,000+ Prize Pool**  
-> Track 3: Unicorn · Bonus Challenge: Best Use of Gemma 4  
-> Author: Chandan Singh Ramola · chandanramola3967@gmail.com
+<div align="center">
+
+![Nika AI Banner](https://img.shields.io/badge/AMD%20AI%20Hackathon-Act%20II%202026-red?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.11-blue?style=for-the-badge&logo=python)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.11-green?style=for-the-badge&logo=fastapi)
+![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react)
+![YOLOv8](https://img.shields.io/badge/YOLOv8-83%25%20mAP-orange?style=for-the-badge)
+
+**Live Demo → [nika-ai-vert.vercel.app](https://nika-ai-vert.vercel.app)**  
+**Backend API → [nikaai-production.up.railway.app](https://nikaai-production.up.railway.app/api/v1/health)**
+
+*Demo credentials: `admin1` / `admin123`*
+
+</div>
 
 ---
 
-## 💡 Vision
+## 💡 The Vision
 
-To democratize industrial quality control — making AI-powered defect detection accessible to every MSME factory on the planet, using nothing more than a smartphone.
+Manufacturing defects cost the global economy **$2.9 trillion annually**. Enterprise vision systems cost **$40,000–$200,000**. India has **63 million MSMEs** that can't afford either.
 
-Nika AI turns any factory worker into a trained quality engineer by putting the power of a **YOLOv8 computer vision model** and a **Gemma 4 AI reasoning engine** directly in their pocket.
-
-> Manufacturing defects cost the global economy an estimated **$2.9 trillion annually**. Enterprise vision systems cost $40,000–$200,000. Nika AI's barrier to entry is a smartphone the worker already owns.
+Nika AI puts the power of a trained quality engineer into the pocket of every factory worker — using nothing but a smartphone they already own.
 
 ---
 
 ## 🎯 The Problem
 
-India alone has **63 million MSMEs** employing over 110 million people. Quality control in these factories remains almost entirely manual — inconsistent, slow, and blind to root causes.
-
 | Problem | Impact |
 |---|---|
-| Inconsistency | Same worker varies ±22% across shifts |
-| Speed ceiling | Manual inspection bottleneck — 200–400 parts/hour max |
-| Cost of misses | Missed defects cost 10× more post-shipment |
+| Manual inconsistency | Same worker varies ±22% accuracy across shifts |
+| Speed ceiling | 200–400 parts/hour max, manually |
+| Cost of misses | Defects caught post-shipment cost 10× more |
 | Zero data capture | No logs, no trends, no root cause visibility |
 | Affordability wall | Enterprise systems: $40k–$200k — unreachable for 99% of MSMEs |
 
@@ -33,30 +40,32 @@ India alone has **63 million MSMEs** employing over 110 million people. Quality 
 ## ✨ Key Features
 
 ### 🔍 Real-Time Defect Detection
-- YOLOv8s model trained on **29,354 real industrial images** across **7 merged datasets**
-- **17 defect classes** with 83% mAP
-- Camera capture or image upload from any smartphone
+- **YOLOv8s** trained on 29,354 real industrial images across 7 merged datasets
+- **17 defect classes** — cracks, scratches, pits, dents, surface anomalies and more
+- **83% mAP** — production-grade accuracy
+- Works from any smartphone camera, no special hardware
 
 ### 🧠 Hallucination Shield (MC Dropout)
-- Monte Carlo Dropout uncertainty quantification runs **30 stochastic forward passes**
-- Classifies reliability: **High / Moderate / Low / UNCERTAIN**
-- When the AI is uncertain, it tells you — instead of confidently lying
-- *No other hackathon project will have this combination*
+- **Monte Carlo Dropout** runs 30 stochastic forward passes per inference
+- Reliability classification: **High / Moderate / Low / UNCERTAIN**
+- When the AI isn't confident, it tells you — no hallucinated certainty
+- Unique to Nika AI among hackathon submissions
 
 ### 💬 Gemma 4 AI Reasoning Engine
-- Powered by **Gemma 4 via Fireworks AI** (hackathon sponsor model)
-- Structured output: **Root Cause → Severity → Repairability → Prevention → Recommended Action**
-- Not a chatbot add-on — the core reasoning brain of the entire product
-- Directly targets the **$6,000 Best Use of Gemma 4 bonus prize**
+- Powered by **Gemma 4 via Fireworks AI**
+- Generates structured output: **Root Cause → Severity → Repairability → Prevention → Recommended Action**
+- Not a chatbot add-on — the core reasoning brain of the product
 
-### 📊 Inspection History & Analytics
-- Full inspection log with filters (date, machine, defect type, worker, action)
-- Analytics dashboard with defect trends and distribution charts
-- **PDF report download** per inspection (ReportLab, no external dependency)
+### 📊 Analytics Dashboard
+- Full inspection history with filters (date, machine, defect type, worker)
+- Defect trend charts and distribution analytics
+- PDF report download per inspection (ReportLab, no external dependency)
+- Machine-level maintenance intelligence
 
 ### 🔐 Enterprise Security
 - JWT authentication with RBAC (Admin / Supervisor / Worker roles)
-- Rate limiting, CSP headers, secure token handling
+- Rate limiting, CSP headers, audit logs
+- Secure token handling throughout
 
 ---
 
@@ -66,11 +75,11 @@ India alone has **63 million MSMEs** employing over 110 million people. Quality 
 ┌─────────────────────────────────────────────────────────────┐
 │                        Nika AI Stack                        │
 ├──────────────┬──────────────────┬───────────────────────────┤
-│   Frontend   │     Backend      │      AMD Cloud GPU        │
-│  React 18    │   FastAPI 0.11   │   ROCm-compatible         │
-│  TypeScript  │   Python 3.11    │   YOLOv8 Inference        │
-│  Vite        │   YOLOv8s        │   $100 Credits            │
-│  Tailwind    │   Gemma 4 API    │                           │
+│   Frontend   │     Backend      │      Infrastructure       │
+│  React 18    │   FastAPI 0.11   │   Railway (Backend)       │
+│  TypeScript  │   Python 3.11    │   Vercel (Frontend)       │
+│  Vite        │   YOLOv8s        │   Neon (PostgreSQL)       │
+│  Tailwind    │   Gemma 4 API    │   Upstash (Redis)         │
 │  Framer      │   PostgreSQL     │                           │
 │  Motion      │   ReportLab PDF  │                           │
 └──────────────┴──────────────────┴───────────────────────────┘
@@ -78,143 +87,135 @@ India alone has **63 million MSMEs** employing over 110 million people. Quality 
 
 ### Tech Stack
 
-| Layer | Technology | Reasoning |
+| Layer | Technology | Why |
 |---|---|---|
-| Frontend | React 18 + Vite + Tailwind CSS | Mobile-responsive, Camera API, fast iteration |
-| Backend | FastAPI (Python 3.11) | Async, auto OpenAPI docs, native Pydantic |
-| Detection Model | YOLOv8s (Ultralytics) | Pre-trained 83% mAP, 17 classes, MC Dropout |
-| LLM / Reasoning | Gemma 4 via Fireworks AI | Sponsor model — targets $6,000 bonus prize |
-| Database | PostgreSQL + SQLAlchemy | Production-grade, Alembic migrations |
-| PDF Reports | ReportLab (Python) | No external service, works offline |
-| Deployment | Docker + AMD Developer Cloud | Mandatory sponsor tech, ROCm GPU acceleration |
+| Frontend | React 18 + Vite + Tailwind CSS | Mobile-first, Camera API, fast iteration |
+| Backend | FastAPI (Python 3.11) | Async, auto OpenAPI docs, Pydantic |
+| Detection | YOLOv8s (Ultralytics) | 83% mAP, 17 classes, MC Dropout support |
+| LLM | Gemma 4 via Fireworks AI | Structured reasoning, hackathon sponsor model |
+| Database | PostgreSQL (Neon) + SQLAlchemy | Production-grade, Alembic migrations |
+| Cache / Queue | Redis (Upstash) + Celery | Rate limiting, async task processing |
+| PDF Reports | ReportLab | No external service, works offline |
+| Deployment | Railway + Vercel | Zero-config, production-ready |
 | Model Registry | HuggingFace Hub | `negi3961/factory-defect-guard` |
 
 ---
 
-## 🚀 Quick Start (Docker Compose)
+## 🚀 Quick Start
+
+### Option 1: Live Demo
+Visit **[nika-ai-vert.vercel.app](https://nika-ai-vert.vercel.app)**
+- Username: `admin1` | Password: `admin123`
+- Username: `operator1` | Password: `operator123`
+
+### Option 2: Run Locally with Docker
 
 ```bash
-git clone https://github.com/negi3961/NikaAI
+git clone https://github.com/chandanNegi39671/NikaAI
 cd NikaAI
+cp backend/.env.example backend/.env  # fill in your keys
 docker compose up --build
 ```
 
-- **Frontend:** http://localhost
-- **Backend API:** http://localhost:8000
-- **API Docs:** http://localhost:8000/docs
+Visit `http://localhost:5173`
 
-Default credentials: `admin1` / `admin123`
+### Option 3: Manual Setup
 
----
-
-## ☁️ AMD Developer Cloud Deployment
-
-Nika AI is deployed on **AMD Developer Cloud** using the $100 hackathon credits with ROCm GPU acceleration.
-
-### Deploy on AMD Cloud
-
-```bash
-# 1. Launch an AMD MI210/MI300X instance (Ubuntu 22.04 + ROCm)
-# 2. Install Docker
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER
-
-# 3. Clone and deploy
-git clone https://github.com/negi3961/NikaAI
-cd NikaAI
-docker compose up --build -d
-```
-
-### ROCm GPU Configuration
-
-The `docker-compose.yml` is configured for AMD GPU acceleration:
-
-```yaml
-services:
-  backend:
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: amdgpu
-              capabilities: [gpu]
-```
-
-YOLOv8 inference runs on the AMD ROCm pipeline — no NVIDIA CUDA required.
-
----
-
-## 🧪 Local Development
-
-### Backend
+**Backend:**
 ```bash
 cd backend
+python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8000
 ```
 
-### Frontend
+**Frontend:**
 ```bash
 cd frontend
 npm install
+echo "VITE_API_URL=http://localhost:8000" > .env.local
 npm run dev
 ```
 
 ---
 
-## 📡 API Reference
+## 🌐 Deployment
 
-| Method | Endpoint | Description | Auth |
-|---|---|---|---|
-| POST | `/api/v1/auth/login` | Login, returns JWT | — |
-| POST | `/api/v1/predict` | Run defect detection on image | JWT |
-| POST | `/api/v1/explain` | Invoke Gemma 4 reasoning on detection | JWT |
-| GET | `/api/v1/inspections` | Paginated inspection history | JWT |
-| GET | `/api/v1/inspections/{id}` | Single inspection detail | JWT |
-| GET | `/api/v1/analytics/report/pdf/{id}` | Download PDF report | JWT |
-| GET | `/api/v1/analytics/dashboard` | Analytics dashboard data | JWT |
-
-Full interactive docs at `/docs` (Swagger UI).
+| Service | Platform | URL |
+|---|---|---|
+| Frontend | Vercel | [nika-ai-vert.vercel.app](https://nika-ai-vert.vercel.app) |
+| Backend API | Railway | [nikaai-production.up.railway.app](https://nikaai-production.up.railway.app) |
+| Database | Neon (PostgreSQL) | Serverless Postgres |
+| Cache | Upstash (Redis) | Serverless Redis |
 
 ---
 
-## 🏆 Why Nika AI Should Win
+## 📁 Project Structure
 
-### Five Unique Selling Points
+```
+NikaAI/
+├── backend/                  # FastAPI backend
+│   ├── app/
+│   │   ├── api/              # REST endpoints
+│   │   ├── core/             # Config, DB, security
+│   │   ├── models/           # YOLOv8 weights + DB models
+│   │   └── services/         # Prediction, analytics, PDF
+│   ├── Dockerfile
+│   ├── railway.toml
+│   └── requirements.txt
+├── frontend/                 # React frontend
+│   ├── src/
+│   │   ├── components/       # UI components
+│   │   ├── pages/            # Route pages
+│   │   ├── lib/              # API client
+│   │   └── hooks/            # Custom hooks
+│   ├── vercel.json
+│   └── vite.config.ts
+├── design/                   # UI/UX mockups
+├── kubernetes/               # K8s manifests
+└── docker-compose.yml
+```
 
-**1. 🛡️ The Hallucination Shield**  
-Every other submission shows a confidence score. Nika AI tells you *when to distrust the AI*. MC Dropout uncertainty quantification is graduate-level ML engineering that judges with ML backgrounds will immediately recognize as technically significant.
+---
 
-**2. 🧠 Gemma 4 as a Domain Expert**  
-Not a chatbot. A manufacturing quality engineer with structured output — causes, severity, repairability, prevention, action. Precisely what the $6,000 bonus prize is designed to recognize.
+## 🔑 Environment Variables
 
-**3. 📦 Real Pre-Trained Model**  
-29,354 industrial images. 7 datasets merged. 17 defect classes. 83% mAP. Production-ready ML work — not a demo model on 200 images.
+**Backend (`backend/.env`):**
+```env
+ENV=production
+SECRET_KEY=your-secret-key-here
+DATABASE_URL=postgresql://user:pass@host/db
+REDIS_URL=rediss://default:token@host:6379
+CELERY_BROKER_URL=rediss://default:token@host:6379
+CELERY_RESULT_BACKEND=rediss://default:token@host:6379
+GOOGLE_AI_KEY=your-gemini-key
+GOOGLE_AI_MODEL=gemini-2.0-flash
+CORS_ORIGINS=["https://your-frontend.vercel.app"]
+CONFIDENCE_THRESHOLD=0.25
+```
 
-**4. 🌍 Genuine Billion-Dollar Market**  
-63 million MSMEs in India. $40,000 minimum for enterprise alternatives. Nika AI's barrier to entry: a smartphone the worker already owns.
-
-**5. ✅ Complete Working Product**  
-Detection + uncertainty evaluation + AI explanation + inspection logging + PDF reports + inspection history. A working product, not a proof of concept.
-
-### Prize Category Alignment
-
-| Prize | Nika AI's Position |
-|---|---|
-| 🥇 Track 3: Unicorn | Full-stack AI app, genuine novelty (Hallucination Shield), real model, billion-dollar market |
-| 💡 Best Use of Gemma 4 ($6,000) | Gemma 4 is the core reasoning engine — not decorative. Central to product value |
-| ☁️ AMD GPU Usage | Deployed on AMD Developer Cloud with ROCm pipeline using $100 credits |
+**Frontend (`frontend/.env.production`):**
+```env
+VITE_API_URL=https://your-backend.up.railway.app
+```
 
 ---
 
 ## 👨‍💻 Author
 
 **Chandan Singh Ramola**  
-chandanramola3967@gmail.com  
-GitHub: [@negi3961](https://github.com/negi3961)  
-HuggingFace: [negi3961/factory-defect-guard](https://huggingface.co/negi3961/factory-defect-guard)
+B.Tech CSE | ML / AI Engineer  
+📧 chandanramola3967@gmail.com  
+🔗 [GitHub](https://github.com/chandanNegi39671) · [LinkedIn](https://linkedin.com/in/chandan-singh-ramola)
 
 ---
 
-*Built for AMD AI Developer Hackathon: Act II · July 6–11, 2026*
+## 📄 License
+
+MIT License — see [LICENSE](LICENSE) for details.
+
+---
+
+<div align="center">
+Built with ❤️ for India's 63 million MSMEs · AMD AI Hackathon Act II · July 2026
+</div>
